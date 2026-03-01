@@ -1,0 +1,9 @@
+{
+  "name": "kotlin-skills",
+  "description": "Kotlin coroutines, flows, and RxJava migration skills for Claude Code",
+  "version": "1.0.0",
+  "author": {
+    "name": "Ricardo Costeira"
+  },
+  "keywords": ["kotlin", "coroutines", "flows", "rxjava", "android", "kmp"]
+}
