@@ -20,8 +20,8 @@ Triggered only when you explicitly ask to migrate. Assesses complexity, maps RxJ
 Copy the skill directories into your Claude Code skills folder:
 
 ```bash
-git clone https://github.com/rcosteira79/Coroutine-Skills.git
-cp -r Coroutine-Skills/skills/* ~/.claude/skills/
+git clone https://github.com/rcosteira79/coroutine-skills.git
+cp -r coroutine-skills/skills/* ~/.claude/skills/
 ```
 
 Skills are invoked automatically based on context:
