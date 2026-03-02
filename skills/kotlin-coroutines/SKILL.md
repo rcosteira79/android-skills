@@ -325,7 +325,8 @@ class LatestNewsViewModel(private val getLatestNews: GetLatestNewsUseCase) : Vie
 | `try/catch` around `launch {}` | Put try/catch inside the coroutine body |
 | No cancellation check in long loop | Add `ensureActive()` at start of each iteration |
 | Calling blocking I/O directly in coroutine body | Wrap with `withContext(ioDispatcher) { ... }` |
-| `suspend fun` for business logic in ViewModel | ViewModel should use `viewModelScope.launch` and expose `StateFlow` |
+| A class has N `suspend fun` methods and only one or two do not use `withContext` while the rest do | The outliers are likely missing `withContext` — flag them as probable oversights |
+| `suspend fun` for business logic in ViewModel | ViewModel should use `viewModelScope.launch` and expose `StateFlow`. **Exception:** pure computations returning a value (e.g. generating a bitmap) are fine as `suspend fun` when called from Compose via `LaunchedEffect` or `produceState` — the composition manages the coroutine lifecycle correctly in that case |
 | Explicit `SupervisorJob()` added to a ViewModel alongside `viewModelScope` | `viewModelScope` already uses `SupervisorJob` internally — flag to user, the extra `SupervisorJob` is redundant and may create a detached scope |
 | `async {}` result never awaited in `supervisorScope` | Exceptions in unawaited `async {}` are silently swallowed — use `launch {}` if you don't need the result |
 

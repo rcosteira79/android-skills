@@ -240,14 +240,39 @@ class NewsViewModel : ViewModel() {
 
 ```kotlin
 // DO: private mutable, public immutable
-private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 1)
-val events: SharedFlow<UiEvent> = _events
-
-// Emit from ViewModel — tryEmit succeeds immediately when buffer has space
-_events.tryEmit(UiEvent.NavigateToDetail(id))
-// Or use emit() inside a coroutine if you need backpressure suspension
-// viewModelScope.launch { _events.emit(UiEvent.NavigateToDetail(id)) }
+private val _events = MutableSharedFlow<UiEvent>()
+val events: SharedFlow<UiEvent> = _events.asSharedFlow()
 ```
+
+### Emitting effects — `launch { emit() }` vs `tryEmit`
+
+**Default: use `launch { emit() }` for one-shot UI effects.**
+
+```kotlin
+// Safe — suspends until the collector is ready; effect is never silently dropped
+fun onItemClick(id: String) {
+    viewModelScope.launch {
+        _events.emit(UiEvent.NavigateToDetail(id))
+    }
+}
+```
+
+`tryEmit()` on a `MutableSharedFlow()` with default parameters (no buffer) **silently drops emissions** when there is no active subscriber or when the subscriber is not immediately ready. This is a silent loss — no error, no indication the event was dropped.
+
+Adding `extraBufferCapacity = 1` makes `tryEmit()` succeed by buffering the value, but introduces a different risk: if two effects are emitted in quick succession while the buffer is already full (e.g. two rapid user actions while the UI is backgrounded), the second `tryEmit()` returns `false` and the second effect is silently dropped.
+
+```kotlin
+// Only safe if you can guarantee at most one buffered event at a time
+private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 1)
+
+fun onItemClick(id: String) {
+    _events.tryEmit(UiEvent.NavigateToDetail(id)) // drops silently if buffer is full
+}
+```
+
+**When `tryEmit` + `extraBufferCapacity` is acceptable:** non-critical effects (e.g. show a tooltip, play a sound) where a missed emission under load is tolerable and you want to avoid the coroutine overhead.
+
+**When to keep `launch { emit() }`:** navigation commands, dialogs, and any effect where a missed emission is a visible bug.
 
 - `replay = 0` (default) — new collectors miss past events; use for one-shot UI events
 - `replay = 1` — new collectors get the last event; use for last-known-state broadcasts
@@ -301,7 +326,7 @@ lifecycleScope.launch {
 | `_state.value = _state.value.copy(...)` in concurrent code | Use `_state.update { it.copy(...) }` |
 | `SharingStarted.Eagerly` in ViewModel | Use `WhileSubscribed(5_000)` to stop flow when no subscribers |
 | `StateFlow` for one-shot events (replays on resubscription) | Use `SharedFlow(replay = 0)` |
-| `try { } catch (e: Exception)` inside `collect {}` or flow builders | Swallows `CancellationException` — use the `.catch` operator or catch specific types only |
+| `try { } catch (e: Exception)` inside `collect {}`, flow builders, or any `suspend fun` called from a coroutine | Swallows `CancellationException` — use the `.catch` operator for flow errors, or catch specific types only in suspend functions; if a broad catch is unavoidable, always rethrow `CancellationException` explicitly |
 | `viewModelScope.launch {}` or effect emission inside a `combine`/`map` transform | Transform lambdas are pure — they re-execute on every resubscription (e.g. rotation), causing effects to fire repeatedly. Move side effects to `onEach` or a dedicated event handler outside the transform |
 | Collecting a flow with `.firstOrNull()` / `.first()` inside a `map` or `combine` lambda | Hidden sequential call that re-fetches on every upstream emission — use `combine` to merge both flows reactively |
 | Manual `Job?` cancellation + re-launch to restart a collection on new upstream value | Use `flatMapLatest` — it cancels the previous inner collection automatically when the upstream emits |
