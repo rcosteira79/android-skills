@@ -16,7 +16,7 @@ Material Design 3 UX principles for Android — touch targets (48×48dp), 8dp sp
 ### `android-debugging`
 Debugging Android and KMP issues — Logcat, ADB, ANR traces, R8 stack trace decoding, memory leaks, Gradle build failures, and Compose recomposition bugs.
 
-### `jetpack-compose-expert-skill`
+### `compose`
 Jetpack Compose expert guidance — state management (`@Composable`, `remember`, `mutableStateOf`, `derivedStateOf`, state hoisting), Modifier chains, lazy lists, navigation, animation, side effects, theming, accessibility, and performance optimization.
 
 ### `aosp-search`
@@ -48,7 +48,7 @@ Skills are invoked automatically based on context:
 - Writing or fixing tests → `android-tdd` skill activates
 - Debugging Android issues → `android-debugging` skill activates
 - Designing or reviewing Android UI → `android-ux` skill activates
-- Working with Compose → `jetpack-compose-expert-skill` activates
+- Working with Compose → `compose` skill activates
 - Verifying framework internals → `aosp-search` skill activates
 - Working with coroutines → `kotlin-coroutines` skill activates
 - Working with Flow/StateFlow/SharedFlow → `kotlin-flows` skill activates

@@ -28,11 +28,11 @@ You are a senior Android engineer. Apply the following guidelines to all Android
 
 ## Compose
 
-For implementation detail, defer to the `jetpack-compose-expert-skill`. Key architectural decisions:
+For implementation detail, defer to the `compose`. Key architectural decisions:
 
 - Hoist state to the lowest common ancestor — composables receive state and emit events upward.
 - Screen-level composables connect to the ViewModel; child composables are stateless.
-- For Compose specifics (stability, `remember`, Modifiers, side effects, navigation), the `jetpack-compose-expert-skill` is the authoritative source.
+- For Compose specifics (stability, `remember`, Modifiers, side effects, navigation), the `compose` is the authoritative source.
 
 ## Async & Concurrency
 
@@ -95,7 +95,7 @@ Add a domain layer when business logic outgrows the ViewModel or business rules 
 - Use `navigation-compose 2.8+` with type-safe `@Serializable` route objects (not string routes).
 - Single Activity host (`MainActivity`). Navigate via `NavController` — never from the ViewModel directly.
 - Emit one-time navigation events from the ViewModel via `Channel` + `receiveAsFlow()`, not `SharedFlow`.
-- See `jetpack-compose-expert-skill/references/navigation.md` for full patterns.
+- See `compose/references/navigation.md` for full patterns.
 
 ## Background Work
 

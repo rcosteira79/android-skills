@@ -1,5 +1,5 @@
 ---
-name: jetpack-compose
+name: compose
 description: >
   Jetpack Compose expert skill for Android UI development. Guides state management decisions
   (@Composable, remember, mutableStateOf, derivedStateOf, State hoisting), view composition

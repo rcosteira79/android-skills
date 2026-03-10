@@ -1,6 +1,6 @@
 ---
 name: android-ux
-description: Use when designing or reviewing Android UI — applies Material Design 3 UX principles covering touch targets, spacing, navigation patterns, accessibility, animation timing, and platform conventions. Complements jetpack-compose-expert-skill with design-level decisions.
+description: Use when designing or reviewing Android UI — applies Material Design 3 UX principles covering touch targets, spacing, navigation patterns, accessibility, animation timing, and platform conventions. Complements the compose skill with design-level decisions.
 ---
 
 # Android UX
