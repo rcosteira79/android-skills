@@ -152,7 +152,8 @@ Gradle build optimisation — Build Scans, configuration cache, build cache, kap
 
 ## Related Projects
 
-- [android/skills](https://github.com/android/skills) — Google's official Android agent skills covering AGP 9 migration, XML-to-Compose migration, Navigation 3, R8 analysis, Play Billing upgrades, and edge-to-edge support
+- [android/skills](https://github.com/android/skills) — Google's official Android agent skills covering AGP 9 migration (pure-Android; KMP is out of scope), XML-to-Compose migration, Navigation 3, R8 analysis, Play Billing upgrades, and edge-to-edge support
+- [Kotlin/kotlin-agent-skills](https://github.com/Kotlin/kotlin-agent-skills) — JetBrains' official agent skills for Kotlin. Includes `kotlin-tooling-agp9-migration` (the KMP-focused complement to Google's `agp-9-upgrade`, covering Paths A/B/C, the new `com.android.kotlin.multiplatform.library` plugin, built-in Kotlin, source-set restructure, and the JetBrains default project layout), `kotlin-tooling-cocoapods-spm-migration` (CocoaPods → SwiftPM for KMP iOS interop, requires Kotlin 2.4.0+), `kotlin-tooling-java-to-kotlin` (framework-aware J2K conversion with reference guides for Spring, Dagger/Hilt, Retrofit, Mockito, RxJava, JUnit, Lombok, Hibernate, Jackson, Micronaut, Quarkus, and Guice), and `kotlin-backend-jpa-entity-mapping` (Kotlin + Spring/JPA — not Android, but the authoritative source for Kotlin-on-backend entity design)
 - [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) — curated list of Android agent skills that inspired many of the skills in this repo
 - [compose-skill](https://github.com/aldefy/compose-skill) — alternative Compose skill that bundles a static AndroidX snapshot
 - [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp) — MCP server for navigating Android source code (optional, used by `android-source-search` skill)
