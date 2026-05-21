@@ -162,6 +162,8 @@ Gradle build optimisation — Build Scans, configuration cache, build cache, kap
 - [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) — broad Compose + KMP skill covering MVI/MVVM, Navigation 2 & 3, Ktor, Koin/Hilt, Room, DataStore, Paging, and iOS interop; inspired the `kmp-ktor` skill in this repo
 - [chrisbanes/skills](https://github.com/chrisbanes/skills) — Chris Banes' narrow, opinionated Compose and Kotlin skills covering state authoring, side effects, recomposition performance, stability diagnostics, focus navigation, UI testing patterns, structured concurrency, flow primitive selection, and KMP expect/actual boundaries; informed the `kmp-boundaries` and `focus-navigation` references and authoring rules across several existing skills
 - [android-reverse-engineering-skill](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) — Claude Code plugin for decompiling APKs, extracting API endpoints, and tracing call flows
+- [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills) — 54 source-grounded testing skills across Compose UI tests (25), JVM unit tests (6), instrumentation / Espresso / UiAutomator (6), ADB-driven E2E (10), test-doubles fundamentals (5), `kotlin.test` multiplatform (1), and migration off legacy `android.test.*` classes (1). Complements our `android-tdd`. Apache-2.0.
+- [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills) — sister repo covering the *performance* side of Compose (stability, recomposition, lazy layouts, baseline profiles, R8, hot reload). Same authoring spec; install both for full testing + performance coverage.
 
 ## License
 
