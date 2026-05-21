@@ -431,4 +431,13 @@ There's deliberately no Nav3 API mirrored here: Google maintains an official, cu
 
 The recipes are building blocks, not drop-in solutions — compose what your use case needs from them, without over-engineering something Nav2 would do trivially.
 
+### Compose-shape guardrails (apply with any Nav version)
+
+These constrain *how composables interact with navigation* — they catch projects that adopt Nav 3 without rethinking the shape:
+
+1. **Destination keys/data are top-level `@Serializable`** — fields, not captured callbacks. Captured callbacks defeat type-safe routing and break SavedState restoration.
+2. **No `@Composable` lambdas in destination data** — the key describes *where you are*, not what's drawn; a `@Composable` field couples graph identity to composition identity and breaks back-stack restoration.
+3. **ViewModels emit navigation events via `Flow<NavEvent>`** (or `Channel<NavEvent>(BUFFERED).receiveAsFlow()`), collected in a `LaunchedEffect` that calls the navigator — don't inject `backStack` / `NavController` into the ViewModel.
+4. **Decorator order matters** — `rememberSaveableStateHolderNavEntryDecorator` wraps `rememberViewModelStoreNavEntryDecorator`, not the reverse, or ViewModels survive but their saved state doesn't.
+
 **Carry-over from this skill:** `NavDisplay` owns its transitions (`transitionSpec` / `popTransitionSpec` / `predictivePopTransitionSpec`), so don't wrap a destination's content in `AnimatedContent` — same double-animation trap as Nav2 (see `references/animation.md`).

@@ -599,6 +599,22 @@ fun MapScreen(state: MapState, modifier: Modifier = Modifier) {
 
 ---
 
+## Swift Interop at the Boundary
+
+Code exposed to iOS — whether through `expect`/`actual`, an interface implementation, or a `ComposeUIViewController` factory — ends up on the Kotlin↔Swift bridge. The bridge has its own naming rules, type-width rules, and exhaustiveness semantics that catch projects out at integration time.
+
+See `references/ios-interop.md` for:
+- Kotlin → Swift naming (`fileNameKt.foo()`, `object.shared`, companion access)
+- Type bridging (`Int` is 32-bit on Kotlin side / `Int32` on Swift side, `Unit` becomes `KotlinUnit`, `List<T>` is copied not shared)
+- `suspend` → `async` and `Flow` → `AsyncSequence` via SKIE
+- Sealed-class exhaustiveness with SKIE `onEnum(of:)`
+- Embedding SwiftUI in Compose via `UIHostingController` + `UIKitViewController`
+- iOS API design rules (`@HiddenFromObjC`, `isStatic`, batch-don't-iterate)
+
+The reference is opt-in — load it when authoring the iOS-side actual or the SwiftUI bridge, not for every KMP boundary decision.
+
+---
+
 ## Checklist
 
 - [ ] Common API is semantic — function name and signature don't mention any platform mechanism

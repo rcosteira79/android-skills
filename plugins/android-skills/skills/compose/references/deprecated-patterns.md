@@ -303,3 +303,44 @@ fun <T> ObservableState<T>.asState(): State<T> = produceState(this.value) {
 ```
 
 **Migration notes:** `snapshotFlow {}` is preferred over direct listeners (Compose 1.6+). Integrates better with Compose's snapshot system. Use `distinctUntilChanged()` to avoid redundant recompositions.
+
+---
+
+## `LinearProgressIndicator(progress = Float)` → Lambda Overload
+
+**Old:**
+```kotlin
+LinearProgressIndicator(progress = 0.5f)
+CircularProgressIndicator(progress = 0.5f)
+```
+
+**New:**
+```kotlin
+LinearProgressIndicator(progress = { 0.5f })
+CircularProgressIndicator(progress = { 0.5f })
+```
+
+**Migration notes:** The raw `Float` overload of `LinearProgressIndicator` / `CircularProgressIndicator` in Material 3 is deprecated in favor of a lambda-form `progress: () -> Float`. The lambda overload defers the progress read so it can be driven by an `Animatable` or a `State<Float>` without forcing recomposition of the parent every frame. Replace with the lambda form; the call site is almost identical.
+
+---
+
+## `DropdownMenuItem` Positional Args → Slot-Based Overload
+
+**Old (positional):**
+```kotlin
+DropdownMenuItem(
+    "Profile",
+    onClick = { navigate(Profile) },
+)
+```
+
+**New (slot-based):**
+```kotlin
+DropdownMenuItem(
+    text = { Text("Profile") },
+    onClick = { navigate(Profile) },
+    leadingIcon = { Icon(Icons.Default.Person, null) },
+)
+```
+
+**Migration notes:** The pre-Material 3 `DropdownMenuItem(text: String, onClick: () -> Unit, ...)` overload is deprecated. The current API uses composable slots for `text`, `leadingIcon`, and `trailingIcon` — consistent with the rest of M3 (`Button`, `ListItem`, `Card`). The slot form is more flexible (you can place a `Row` or a typography-styled `Text` in the slot) and aligns with the M3 component contract.

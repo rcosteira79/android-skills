@@ -281,6 +281,19 @@ Respect the user's system font size — never clamp `fontSize` to a fixed value 
 | Standard transitions (screen enter/exit) | 200–300ms | `FastOutSlowIn` / `EmphasizedDecelerate` |
 | Complex choreography (shared elements) | 300–500ms | `Emphasized` |
 
+### M3 motion duration tokens
+
+Material 3 ships a 16-step duration ladder. When pairing motion duration with the easing rule above, prefer tokens over arbitrary millisecond values — they survive theme changes and stay consistent across components.
+
+| Token group | Range | Typical use |
+|---|---|---|
+| `short1` … `short4` | 50–200ms | Micro-interactions, state changes (ripples, selection, switches) |
+| `medium1` … `medium4` | 250–400ms | Standard transitions (screen enter/exit, expansion, reveal) |
+| `long1` … `long4` | 450–600ms | Container transforms, fade-through between large surfaces |
+| `extraLong1` … `extraLong4` | 700–1000ms | Shared-element choreography, hero transitions on tablets/foldables |
+
+The token tier maps directly to the easing rule: `short*` with `FastOutSlowIn`, `medium*` with `EmphasizedDecelerate`/`EmphasizedAccelerate`, `long*`/`extraLong*` with `Emphasized`. Reach for `MotionScheme` (Compose Material 3 1.4+) where available; otherwise hold the duration value at a single source of truth in your theme rather than per-call-site.
+
 Rules:
 - Animations must be **interruptible** — a tap during animation should respond immediately
 - Never block user input during an animation
@@ -363,6 +376,7 @@ Use this when reviewing a screen or feature for Material Design 3 compliance. Sc
 - Correct role usage: `primary` for key actions, `secondary` for less prominent elements, `tertiary` for accents, `error` for error states
 - `surface`, `surfaceVariant`, `surfaceContainerLow/High` used for layered surfaces — not arbitrary grays
 - `on*` colors paired correctly (e.g. text on `primary` uses `onPrimary`)
+- Outlines paired correctly — `outline` for interactive boundaries needing 3:1 contrast (text field borders, focus rings), `outline-variant` for decorative dividers
 - Dynamic color supported on Android 12+ (`dynamicLightColorScheme` / `dynamicDarkColorScheme`) with a static fallback
 
 ### 2. Typography
@@ -382,6 +396,7 @@ Use this when reviewing a screen or feature for Material Design 3 compliance. Sc
 - Elevation expressed through **tonal color** (surface containers), not drop shadows — M3 uses tonal elevation
 - Shadow elevation reserved for components that need it (dialogs, menus, FABs)
 - `ElevatedCard`, `ElevatedButton` used instead of manual `shadowElevation` on generic surfaces
+- Surface container hierarchy is monotonic by tone: `surfaceContainerLowest < surfaceContainerLow < surfaceContainer < surfaceContainerHigh < surfaceContainerHighest`. If two adjacent layers render at the same color in either theme, the elevation cue is broken
 
 ### 5. Components
 
@@ -389,13 +404,32 @@ Use this when reviewing a screen or feature for Material Design 3 compliance. Sc
 - No M2/M3 component mixing on the same screen
 - Components used as intended: `FloatingActionButton` for the primary screen action, `Card` for grouped content, `TopAppBar` for screen-level actions — not repurposed for unrelated patterns
 
+### Quick grep checks
+
+Three one-liners that surface the most common M3 violations across an Android module. Run from the project root:
+
+```bash
+# 1. Hardcoded color literals in Compose — should be MaterialTheme.colorScheme.* roles
+rg --type kt 'Color\(0x[0-9a-fA-F]{6,8}\)' --files-with-matches | head
+
+# 2. Hardcoded corner radii — should reference MaterialTheme.shapes.*
+rg --type kt 'RoundedCornerShape\(\s*\d+(?:\.\d+)?\s*\.dp\s*\)' --files-with-matches | head
+
+# 3. Material 2 import contamination — should be androidx.compose.material3.*
+rg --type kt 'import androidx\.compose\.material\.' --files-with-matches | head
+```
+
+The grep output gives the audit a concrete starting list — each hit is a category-1, category-3, or category-5 violation respectively, before any human review begins.
+
 ### 6. Layout & spacing
 
 - 8dp grid respected for all padding and margins
-- Content width constrained on wide screens (no full-bleed text on tablets)
+- Content width constrained on wide screens (no full-bleed text on tablets) — cap body content at 840–1040dp on Large (1200dp+) and Extra-large (1600dp+) and center it; the full window width is for navigation chrome, not paragraphs
 - Responsive breakpoints applied: compact / medium / expanded window size classes
 - Screen maps to a canonical layout (Feed, List-Detail, or Supporting Pane) where applicable
 - Foldable postures handled: no content across hinge, tabletop/book mode layouts where relevant
+- Dialogs centered (not full-screen) on Medium and wider window classes — full-screen dialogs are a Compact-only pattern
+- Bottom sheets convert to side sheets on Expanded and wider — a bottom sheet stretched across a tablet wastes the horizontal axis and forces awkward thumb reach
 
 ### 7. Navigation
 

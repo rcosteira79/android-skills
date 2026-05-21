@@ -6,21 +6,21 @@
     "name": "Ricardo Costeira"
   },
   "metadata": {
-    "description": "Android and KMP development skills for Claude Code — architecture, Compose, coroutines, flows, networking (Retrofit, Ktor), testing, debugging, Gradle, and Material Design 3",
-    "version": "4.0.1"
+    "description": "Android and KMP development skills for Claude Code — architecture, Compose, coroutines, flows, networking (Retrofit, Ktor), persistent storage (Room, DataStore), pagination, dependency injection (Hilt, Koin), testing, debugging, Gradle, and Material Design 3",
+    "version": "4.3.0"
   },
   "plugins": [
     {
       "name": "android-skills",
       "source": "./plugins/android-skills",
-      "description": "Android and KMP development skills for Claude Code — architecture, Compose, coroutines, flows, networking (Retrofit, Ktor), testing, debugging, Gradle, and Material Design 3",
-      "version": "4.0.1",
+      "description": "Android and KMP development skills for Claude Code — architecture, Compose, coroutines, flows, networking (Retrofit, Ktor), persistent storage (Room, DataStore), pagination, dependency injection (Hilt, Koin), testing, debugging, Gradle, and Material Design 3",
+      "version": "4.3.0",
       "author": {
         "name": "Ricardo Costeira"
       },
       "repository": "https://github.com/rcosteira79/android-skills",
       "license": "MIT",
-      "keywords": ["android", "kotlin", "kmp", "compose", "coroutines", "flows", "material3", "jetpack", "gradle"]
+      "keywords": ["android", "kotlin", "kmp", "compose", "coroutines", "flows", "ktor", "room", "datastore", "paging", "koin", "hilt", "material3", "jetpack", "gradle"]
     }
   ]
 }

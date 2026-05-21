@@ -79,6 +79,29 @@ LaunchedEffect(listState) {
 }
 ```
 
+### The Unified Keying Rule
+
+`remember`, `LaunchedEffect`, `DisposableEffect`, `produceState`, and the surrounding `remember { ... }` block around `derivedStateOf` all share one rule: **any changing value the body reads must either appear in the key list, be a constant, be a call-site-owned stable object, or be read through `rememberUpdatedState`**.
+
+The three legitimate carve-outs:
+
+1. **Constants** — `MAX_RETRY = 3`, `Color.Red`, a string literal. Compile-time constant, can't change.
+2. **Call-site-owned stable objects that the call site never replaces** — `val scope = rememberCoroutineScope()`, `val animatable = remember { Animatable(0f) }`, a state holder created with `remember { ... }` higher up. The key argument would be redundant because the reference is already stable for the composition's lifetime.
+3. **Initial-only capture is the goal** — `val firstSeenAt = remember { Clock.System.now() }`. Capturing the value at first composition is exactly what the author wants. Mark these with a `// initial-only` comment so future readers don't read the missing key as a bug.
+
+```kotlin
+@Composable
+fun SessionTimer() {
+    val firstSeenAt = remember { Clock.System.now() }  // initial-only — intentional
+    val elapsed = remember(firstSeenAt) {
+        Clock.System.now() - firstSeenAt  // keyed correctly so this recomputes when firstSeenAt does
+    }
+    // ...
+}
+```
+
+For values that should keep an effect *running* across changes but invoke the *latest* version of a callback (typically `onComplete`-style continuations), wrap with `rememberUpdatedState(value)` and read inside the effect — it intentionally tracks the latest value without restarting the effect on changes.
+
 ## State Hoisting
 
 Move state up to a parent composable to enable reusability and testing.
@@ -194,6 +217,33 @@ fun UserList(users: List<User>, filterText: String) {
 
 **Pitfall:** Accessing `.value` in a lambda passed to a child composable doesn't create a dependency. Use `snapshotFlow` for callbacks.
 
+**Pitfall:** The block must read at least one Compose `State<T>` to invalidate. `derivedStateOf { a + b }` where neither `a` nor `b` is a `State` will never re-evaluate after the first run, and you've paid the overhead for nothing — the wrapper does no work that a plain `val` wouldn't do. If you intentionally want a single-shot computation, use `remember { a + b }` instead.
+
+### `derivedStateOf` and the Surrounding `remember`
+
+`derivedStateOf` tracks **`State<T>` reads inside its lambda**. It does **not** track plain values captured by the lambda. Those plain values are captured **once** when the surrounding `remember { ... }` runs — and if they change later without being in the `remember` key list, the derived state silently uses the original value forever.
+
+```kotlin
+// WRONG — threshold captured once; threshold changes later go unnoticed
+@Composable
+fun ScrollFlag(listState: LazyListState, threshold: Int) {
+    val isPastThreshold by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > threshold }  // threshold captured at first composition
+    }
+    // ... isPastThreshold uses the original threshold even if the parameter changes
+}
+
+// RIGHT — key the surrounding remember on the captured value
+@Composable
+fun ScrollFlag(listState: LazyListState, threshold: Int) {
+    val isPastThreshold by remember(threshold) {
+        derivedStateOf { listState.firstVisibleItemIndex > threshold }
+    }
+}
+```
+
+If the surrounding lambda also captures a `State<T>` indirectly (e.g., calling `someState.value` then passing the unwrapped value), the same trap applies — capture the `State` itself, not the unwrapped snapshot, so changes propagate.
+
 ## snapshotFlow
 
 Converts Compose state to Kotlin Flow for side effects and external APIs.
@@ -262,6 +312,92 @@ items[0] = items[0].copy(name = "Updated")
 ```
 
 See source: `androidx.compose.runtime.snapshots` for collection implementation.
+
+## Cross-Phase Back-Writing
+
+**Back-writing** = writing observable state in a phase that invalidates an *earlier* phase. The compiler doesn't flag it, the recomposition counter doesn't show a single hot spot — the symptom is jittery scroll, ghost layouts, or recomposition that loops between two states.
+
+Three flavors, ordered by frequency:
+
+### 1. Composition → composition (`mutableStateMapOf.clear()/putAll()` in a body)
+
+Rebuilding a `mutableStateMapOf` or `mutableStateListOf` inside a composable body writes observable state *during composition*. That write invalidates the same scope that's running, queuing another composition pass that does the same thing on the next frame.
+
+```kotlin
+// WRONG — composition rebuilds the map, which invalidates composition, which rebuilds the map…
+@Composable
+fun SectionedList(items: List<Item>) {
+    val grouped = remember { mutableStateMapOf<String, List<Item>>() }
+    grouped.clear()                         // write inside composition
+    grouped.putAll(items.groupBy { it.category })  // another write inside composition
+    LazyColumn { grouped.forEach { (key, list) -> /* … */ } }
+}
+
+// RIGHT — derive, don't rebuild
+@Composable
+fun SectionedList(items: List<Item>) {
+    val grouped = remember(items) { items.groupBy { it.category } }
+    LazyColumn { grouped.forEach { (key, list) -> /* … */ } }
+}
+```
+
+`mutableStateMapOf` and `mutableStateListOf` are for state that **mutates in response to events**, not for caches you happen to want recomposition observability on. For the latter, plain `remember(key) { computeMap() }` is the right tool.
+
+### 2. Layout → composition (`onSizeChanged` writing observable state read in composition)
+
+The `onSizeChanged` callback fires *after layout*. Writing `MutableState` from inside it (or any other layout-phase callback) invalidates composition with the new size, which lays out again, which fires the callback again. The loop only stops if the value happens to stabilize.
+
+```kotlin
+// WRONG — onSizeChanged writes observable state read in composition; layout invalidates composition
+@Composable
+fun MeasuredHeader(title: String) {
+    var widthPx by remember { mutableIntStateOf(0) }
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .onSizeChanged { widthPx = it.width }  // layout-phase write
+    ) {
+        // composition read of widthPx — feedback loop
+        Text(title, modifier = Modifier.padding(start = (widthPx / 4).dp))
+    }
+}
+
+// RIGHT — defer the read to layout/draw via a provider lambda
+@Composable
+fun MeasuredHeader(title: String) {
+    var widthPx by remember { mutableIntStateOf(0) }
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .onSizeChanged { widthPx = it.width }
+    ) {
+        Text(
+            title,
+            modifier = Modifier.layout { measurable, constraints ->
+                // read widthPx in the layout phase, not composition
+                val placeable = measurable.measure(constraints)
+                val start = widthPx / 4
+                layout(placeable.width, placeable.height) {
+                    placeable.place(start, 0)
+                }
+            },
+        )
+    }
+}
+```
+
+If two siblings need to know each other's measured size (a row where one item should match another's height, for example), reach for `Modifier.decorateMeasureConstraints` (Foundation 1.10+) instead of round-tripping through composition:
+
+```kotlin
+// RIGHT — measure-phase decoration, no composition cascade
+Modifier.decorateMeasureConstraints { measurable, constraints ->
+    measurable.measure(constraints.copy(minHeight = anchorHeight))
+}
+```
+
+### 3. Draw → composition
+
+Vanishingly rare in app code — the draw phase doesn't usually write Compose state — but `Canvas` and custom `DrawScope` blocks that update a `MutableState` produce the same loop. The fix is the same: cache the computed value in layout, not draw.
+
+The general rule: **state writes go forward through phases (composition → layout → draw), never backward**. When a backward write is the right shape (a sticky-header that needs to know its measured height, for example), the cure is a layout-phase API (`Modifier.layout`, `Modifier.decorateMeasureConstraints`), not a `MutableState` that bridges back into composition.
 
 ## Read-Only Composables
 
@@ -647,7 +783,45 @@ class MyViewModel : ViewModel() {
 }
 ```
 
-### 2. Choose Channel or SharedFlow for one-shot events based on delivery guarantees
+### 2. Durable state + acknowledgement over ephemeral events when the user can see the outcome
+
+Before reaching for `Channel` or `SharedFlow`, ask: **would losing this signal desynchronize what the user thinks the app did from the underlying state?** If yes, the signal isn't ephemeral. Model it as **state plus an acknowledgement** — a field on `UiState` that the UI clears after consumption — not as a one-shot event.
+
+```kotlin
+// WRONG — one-shot event for an outcome the user must see
+class CheckoutViewModel : ViewModel() {
+    private val _events = Channel<CheckoutEvent>(BUFFERED)
+    val events = _events.receiveAsFlow()
+
+    fun pay() = viewModelScope.launch {
+        val result = paymentApi.charge()
+        _events.send(CheckoutEvent.PaymentResult(result))  // dropped if collector is gone (config change, backgrounded)
+    }
+}
+
+// RIGHT — durable state in UiState, acknowledgement clears it
+data class CheckoutUiState(
+    val isPaying: Boolean = false,
+    val pendingResult: PaymentResult? = null,  // outcome lives here
+)
+
+class CheckoutViewModel : ViewModel() {
+    private val _state = MutableStateFlow(CheckoutUiState())
+    val state = _state.asStateFlow()
+
+    fun pay() = viewModelScope.launch {
+        _state.update { it.copy(isPaying = true) }
+        val result = paymentApi.charge()
+        _state.update { it.copy(isPaying = false, pendingResult = result) }
+    }
+
+    fun resultAcknowledged() { _state.update { it.copy(pendingResult = null) } }
+}
+```
+
+Use ephemeral channels (`Channel<Event>(BUFFERED).receiveAsFlow()` or `SharedFlow(replay = 0)`) only for genuinely fire-and-forget UI commands where dropping is acceptable: a transient snackbar acknowledgement, a haptic tick, scroll-to-top after a refresh. Anything that influences what the user thinks the app did — payment outcomes, deletion confirmations, save success, navigation that must happen — belongs in state, with the UI clearing it after consumption.
+
+### 3. Choose Channel or SharedFlow for one-shot events based on delivery guarantees
 
 `Channel` guarantees exactly-once delivery (sender suspends or buffers until consumed). `SharedFlow(replay = 0)` silently drops emissions when no collector exists. Choose based on whether missed events are acceptable — see `android-skills:kotlin-flows` for the full trade-off.
 
@@ -674,11 +848,11 @@ LaunchedEffect(Unit) {
 }
 ```
 
-### 3. rememberSaveable only at NavGraph level
+### 4. rememberSaveable only at NavGraph level
 
 Use `rememberSaveable` for screen-level state (search query, tab selection) at the NavGraph entry point, not deep inside composable trees where it adds unnecessary persistence overhead.
 
-### 4. snapshotFlow + distinctUntilChanged() for reactive scroll
+### 5. snapshotFlow + distinctUntilChanged() for reactive scroll
 
 ```kotlin
 LaunchedEffect(listState) {
@@ -688,13 +862,44 @@ LaunchedEffect(listState) {
 }
 ```
 
-### 5. .stateIn() with .map() for derived flows
+### 6. .stateIn() with .map() for derived flows
 
 ```kotlin
 val filteredItems = repository.items
     .map { items -> items.filter { it.isActive } }
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 ```
+
+### 7. Don't build Flow pipelines inside `@Composable` bodies
+
+`stateIn`, `shareIn`, `combine`, `flatMapLatest`, and similar Flow operators belong in a presenter / ViewModel scope — not constructed inside a composable's body or `LaunchedEffect`. A pipeline built inside composition is rebuilt every recomposition, lives in the wrong layer, and tears down on disposal without surviving a config change.
+
+```kotlin
+// WRONG — pipeline rebuilt every recomposition, ties pipeline lifecycle to composition
+@Composable
+fun ProfileScreen(repo: ProfileRepository, userId: String) {
+    val profile by remember {
+        combine(repo.userStream(userId), repo.preferencesStream()) { u, p -> u to p }
+            .stateIn(rememberCoroutineScope(), SharingStarted.Lazily, null)  // composition-scoped — wrong
+    }
+    /* ... */
+}
+
+// RIGHT — pipeline lives in ViewModel; UI collects the StateFlow
+class ProfileViewModel(repo: ProfileRepository, userId: String) : ViewModel() {
+    val state: StateFlow<ProfilePair?> =
+        combine(repo.userStream(userId), repo.preferencesStream()) { u, p -> u to p }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+}
+
+@Composable
+fun ProfileScreen(vm: ProfileViewModel) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    /* ... */
+}
+```
+
+When you see `stateIn(rememberCoroutineScope(), …)` or `combine(…).stateIn(…)` inside a composable body, the fix is almost always "move this to the presenter and pass the result through."
 
 ---
 

@@ -329,6 +329,40 @@ LazyColumn {
 }
 ```
 
+### ✗ Bad: `list.indexOf(item)` Inside an Item Factory
+
+Calling `indexOf`, `lastIndexOf`, or `indexOfFirst { }` on the source list **inside** the item lambda is O(n) per item, so a single scroll pass costs O(n²) over the whole list. Subtle: this includes uses like "highlight the active item" where the lookup is genuinely needed.
+
+```kotlin
+// WRONG — O(n²) over a scroll: each item rescans the full list to find its own position
+LazyColumn {
+  items(items, key = { it.id }) { item ->
+    val position = items.indexOf(item)           // O(n) per item
+    val isActive = position == activeIndex
+    ItemRow(item, isActive)
+  }
+}
+
+// RIGHT — itemsIndexed gives the index for free
+LazyColumn {
+  itemsIndexed(items, key = { _, it -> it.id }) { position, item ->
+    val isActive = position == activeIndex
+    ItemRow(item, isActive)
+  }
+}
+
+// RIGHT (when the lookup is by id, not index) — use a Map built outside the lambda
+val byId = remember(items) { items.associateBy { it.id } }
+LazyColumn {
+  items(items, key = { it.id }) { item ->
+    val isActive = byId[activeId] === item  // O(1) lookup
+    ItemRow(item, isActive)
+  }
+}
+```
+
+The trap is convincing: the linear scan looks like a small detail, but it scales with list size and reruns on every scroll-induced recomposition.
+
 ### ✓ Good: Use derivedStateOf for Scroll-Dependent Logic
 ```kotlin
 val listState = rememberLazyListState()

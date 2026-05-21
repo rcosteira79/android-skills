@@ -110,6 +110,53 @@ abstract class AppDatabase : RoomDatabase() {
 
 Provide as a singleton via Hilt and export the schema for migration history tracking.
 
+### Room in KMP (commonMain)
+
+Room has been KMP-stable since 2.7.0. The shared setup differs from the Android-only setup in three places:
+
+1. `@ConstructedBy(...)` on the `@Database`, paired with an `expect object` that Room generates per-platform `actual`s for.
+2. `BundledSQLiteDriver` from `androidx.sqlite:sqlite-bundled` — ensures the same SQLite version across Android, iOS, JVM, and web targets (Android's system SQLite drifts between API levels and devices).
+3. `setQueryCoroutineContext(Dispatchers.IO)` — Android Room defaults this; KMP doesn't.
+
+```kotlin
+// commonMain
+@Database(entities = [ArticleEntity::class], version = 1)
+@ConstructedBy(AppDatabaseConstructor::class)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun articleDao(): ArticleDao
+}
+
+@Suppress("KotlinNoActualForExpect")
+expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase>
+
+fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase =
+    builder
+        .setDriver(BundledSQLiteDriver())
+        .setQueryCoroutineContext(Dispatchers.IO)
+        .build()
+```
+
+Each platform provides its own `RoomDatabase.Builder`:
+
+- **Android:** `Room.databaseBuilder(context, AppDatabase::class.java, "app.db")`
+- **iOS:** `Room.databaseBuilder<AppDatabase>(databasePath = "${NSHomeDirectory()}/app.db")`
+- **JVM:** `Room.databaseBuilder<AppDatabase>(databasePath = "${System.getProperty("user.home")}/app.db")`
+
+KSP must be wired **per target** — `ksp(libs.androidx.room.compiler)` is Android-only:
+
+```kotlin
+dependencies {
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspIosX64", libs.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+    // … one per target
+}
+room { schemaDirectory("$projectDir/schemas") }
+```
+
+For pure Android projects, skip `@ConstructedBy` and call `Room.databaseBuilder(context, AppDatabase::class.java, "app.db")` directly — Room behaves identically. The KMP setup is opt-in when the data layer needs to live in `commonMain`.
+
 ---
 
 ## Offline-First Strategies
