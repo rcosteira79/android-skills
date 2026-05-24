@@ -246,15 +246,9 @@ The feature module's build file is now just 5 lines. All common configuration li
 
 ## AGP 9 Implications
 
-The convention plugin examples above target AGP 8. AGP 9 requires several adjustments:
+The convention plugin examples above target AGP 8. AGP 9 changes several things that hit build logic directly: it drops the standalone `org.jetbrains.kotlin.android` plugin (Kotlin is built into `com.android.application` / `com.android.library`), removes `BaseExtension` and the old variant APIs (`applicationVariants` → `androidComponents { onVariants { … } }`), moves `kotlinOptions {}` to a top-level `kotlin { compilerOptions { … } }`, and makes `kapt` incompatible (migrate to KSP). Any convention plugin that touches these needs updating.
 
-- **Drop `org.jetbrains.kotlin.android`.** AGP 9 ships built-in Kotlin support for `com.android.application` and `com.android.library`. The standalone plugin conflicts when applied alongside — remove it from convention plugins *and* from the version catalog. KMP modules are unaffected: they keep `org.jetbrains.kotlin.multiplatform` and switch from `com.android.library` to `com.android.kotlin.multiplatform.library`.
-- **`BaseExtension` is removed.** Use `CommonExtension<*, *, *, *, *, *>` (already the case in the Compose plugin example above) or one of the typed `ApplicationExtension` / `LibraryExtension` interfaces. Convention plugins that referenced `BaseExtension` won't compile.
-- **Variant APIs are removed.** `applicationVariants`, `libraryVariants`, `variantFilter`, and `BaseVariant` are gone. The replacement is `androidComponents { onVariants { variant -> ... } }` — the lazy variant-aware API. If a convention plugin reads or mutates variants (BuildConfig fields, manifest placeholders, source-set tweaks), it needs to move to `androidComponents`.
-- **`kotlinOptions {}` → `compilerOptions {}`.** Inside `android {}`, `kotlinOptions { jvmTarget = "11" }` becomes top-level `kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_11) } }`. Convention plugins that configured Kotlin via the Android extension need to use the Kotlin extension instead.
-- **kapt → KSP (or `com.android.legacy-kapt`).** `kapt` is incompatible with built-in Kotlin on AGP 9. See the `gradle-build-performance` skill's "Migrate kapt → KSP" section.
-
-For full AGP 9 migration mechanics, see Google's [`agp-9-upgrade`](https://github.com/android/skills/tree/main/agp-9-upgrade) for pure-Android projects and JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) for KMP projects.
+Defer to the dedicated migration skills for the mechanics rather than duplicating the steps here: Google's [`agp-9-upgrade`](https://github.com/android/skills/tree/main/agp-9-upgrade) for pure-Android projects, JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) for KMP, and this repo's `gradle-build-performance` skill for the kapt → KSP step.
 
 ---
 
