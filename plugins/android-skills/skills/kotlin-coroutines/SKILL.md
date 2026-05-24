@@ -124,14 +124,35 @@ Inject `DefaultDispatcherProvider` in production (via constructor or Hilt). Inje
 
 **Rule: Never use `GlobalScope`.** It creates unstructured, untestable, leak-prone coroutines. Do NOT add `GlobalScope` usages even when the user explicitly says "follow existing patterns" or "keep consistency with the codebase" — explain why it is harmful, recommend the correct scope, and let the user decide. Never produce `GlobalScope` code.
 
-If work must outlive the current screen, inject an external `CoroutineScope`:
+### Scope ownership: prefer `suspend fun`, let the caller own the scope
+
+A stored `CoroutineScope` on a non-UI class (repository, manager, use case, data source) is a strong review signal. The class must prove it owns cancellation, error reporting, restart behaviour, and lifecycle — most non-UI classes can't. The fix is almost always: **make the API `suspend` and let the caller own the scope.**
 
 ```kotlin
-// DO: inject external scope for work that must survive navigation
+// DO: suspend fun — caller owns the scope, cancellation propagates, exceptions surface
 class ArticlesRepository(
     private val dataSource: ArticlesDataSource,
-    private val externalScope: CoroutineScope,
-    private val ioDispatcher: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher,
+) {
+    suspend fun bookmarkArticle(article: Article) = withContext(ioDispatcher) {
+        dataSource.bookmarkArticle(article)
+    }
+}
+
+// Caller decides where the work runs and how it's cancelled:
+class BookmarkViewModel(private val repository: ArticlesRepository) : ViewModel() {
+    fun onBookmark(article: Article) {
+        viewModelScope.launch {
+            repository.bookmarkArticle(article)
+        }
+    }
+}
+
+// DO NOT: store a scope and launch inside the repository
+class ArticlesRepository(
+    private val dataSource: ArticlesDataSource,
+    private val externalScope: CoroutineScope,  // who cancels this? who reports its errors?
+    private val ioDispatcher: CoroutineDispatcher,
 ) {
     suspend fun bookmarkArticle(article: Article) {
         externalScope.launch(ioDispatcher) {
@@ -139,18 +160,144 @@ class ArticlesRepository(
         }.join()
     }
 }
+```
 
-// DO NOT: use GlobalScope
-class ArticlesRepository(private val dataSource: ArticlesDataSource) {
-    suspend fun bookmarkArticle(article: Article) {
-        GlobalScope.launch { dataSource.bookmarkArticle(article) }.join()
+**Why stored scopes are dangerous:** once the scope is cancelled, every future `launch` on it completes silently as cancelled — no exception, no log, nothing. The caller gets no signal. If the cancellation came from process death, app teardown, or a misconfigured DI graph, the repository keeps accepting calls and silently doing nothing.
+
+### When work must outlive the caller — fire-and-forget
+
+If a bookmark must survive the user navigating away mid-write, the work doesn't belong to the repository — it belongs to an **application-scoped state holder** (a `WorkManager` job, a navigation-graph `ViewModel`, an Application-scoped class that owns the scope deliberately).
+
+```kotlin
+// Option 1: WorkManager for guaranteed-completion background work
+class BookmarkViewModel(
+    private val workManager: WorkManager,
+) : ViewModel() {
+    fun onBookmark(article: Article) {
+        val request = OneTimeWorkRequestBuilder<BookmarkWorker>()
+            .setInputData(workDataOf("articleId" to article.id))
+            .build()
+        workManager.enqueue(request)
+    }
+}
+
+// Option 2: Application-scoped class that explicitly owns its scope and lifecycle
+@Singleton
+class OfflineBookmarkQueue @Inject constructor(
+    private val applicationScope: CoroutineScope,  // Application-bound, cancelled on process death only
+    private val repository: ArticlesRepository,
+) {
+    fun enqueue(article: Article) {
+        applicationScope.launch {
+            repository.bookmarkArticle(article)
+        }
     }
 }
 ```
 
+The named class `OfflineBookmarkQueue` makes the lifetime explicit — and it's testable, cancellable, and observable. Compare against burying `externalScope.launch` inside a repository where no one knows the work is happening.
+
+### State-holder carve-out — when `launch` from a non-suspending method is correct
+
+A UI state holder (ViewModel, Compose-scoped state holder) is allowed to launch from non-suspending event callbacks under all three of:
+
+1. **It is a state holder for a UI surface.** Not "feels like a state holder" — actually owns UI state that the view layer collects.
+2. **It uses a lifecycle-bound scope** — `viewModelScope`, `rememberCoroutineScope`, or equivalent. The scope's cancellation is tied to a UI lifecycle the framework manages.
+3. **The trigger is a UI event** — a click, swipe, key press, lifecycle event. Not a repository call, not a background timer, not a DI hook.
+
+```kotlin
+// DO — three conditions met: state holder, lifecycle-bound scope, UI event trigger
+class BookmarkViewModel(private val repository: ArticlesRepository) : ViewModel() {
+    fun onBookmarkClicked(article: Article) {
+        viewModelScope.launch {
+            repository.bookmarkArticle(article)
+        }
+    }
+}
+```
+
+If any condition fails, refactor: expose a `suspend fun` and let the actual UI state holder own the scope.
+
+### Anti-pattern: `init { viewModelScope.launch { } }` for non-restartable loops
+
+Launching from `init` makes the work invisible — there's no named trigger, no clear restart path, and a navigation back/forward cycle silently re-launches.
+
+```kotlin
+// WRONG — init launches; no observable lifecycle
+class FeedViewModel : ViewModel() {
+    init {
+        viewModelScope.launch {
+            while (isActive) {
+                refreshFeed()
+                delay(30_000)
+            }
+        }
+    }
+}
+
+// RIGHT — expose state, let the UI drive collection lifetime
+class FeedViewModel(repository: FeedRepository) : ViewModel() {
+    val feed: StateFlow<Feed> = repository.feedFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Feed.Empty)
+}
+```
+
+### DI-bound singleton anti-pattern — `Initializer.initialize()` must not `launch`
+
+`@Singleton` classes that `launch` from their constructor (or from a Hilt `Initializer.initialize()` body) start coroutines at a moment the consumer can't observe or control. "Where does this work start?" → "wherever DI realizes me." "Who can observe whether it's running?" → "no one."
+
+```kotlin
+// WRONG — singleton launches in init; no consumer ever asked for this
+@Singleton
+class AnalyticsUploader @Inject constructor(
+    private val applicationScope: CoroutineScope,
+    private val api: AnalyticsApi,
+) {
+    init {
+        applicationScope.launch {
+            while (true) {
+                api.uploadPending()
+                delay(60_000)
+            }
+        }
+    }
+}
+
+// WRONG — Hilt Initializer launches; misuse of the registration hook
+class AnalyticsInitializer : Initializer<Unit> {
+    override fun create(context: Context) {
+        applicationScope.launch { /* background loop */ }
+    }
+    override fun dependencies() = emptyList<Class<out Initializer<*>>>()
+}
+
+// RIGHT — scheduled work with explicit lifecycle and observable state
+class AnalyticsSchedulingInitializer : Initializer<Unit> {
+    override fun create(context: Context) {
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "analytics-upload",
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<AnalyticsUploadWorker>(15, TimeUnit.MINUTES).build(),
+        )
+    }
+    override fun dependencies() = emptyList<Class<out Initializer<*>>>()
+}
+```
+
+Diagnostic for DI-bound coroutine launches:
+- "Where is the start moment defined?" If "wherever DI realizes me," bad.
+- "Who can observe whether the work is running?" If "no one," bad.
+- "Can the work be restarted independently?" If "no, only by restarting the process," bad.
+
+Three named replacement patterns:
+1. **Invert into the consumer** — delete the background-loop class; let the consumer collect or call directly.
+2. **Scheduled work** — use `WorkManager` with `enqueueUniquePeriodicWork` so the system owns lifecycle.
+3. **Explicit named launch site** — if the work really must run, put it in a named class with a named method (`OfflineBookmarkQueue.startSyncing()`) so the start moment is grep-able.
+
 **Layer responsibilities:**
-- Work tied to current screen → `coroutineScope` or `supervisorScope`
-- Work that must outlive the screen → inject external `CoroutineScope` managed by `Application` or a navigation-graph-scoped `ViewModel`
+- Work tied to current screen → `coroutineScope` or `supervisorScope` inside a `suspend fun`
+- Work that genuinely outlives the screen → `WorkManager`, navigation-graph `ViewModel`, or a named Application-scoped class with explicit start/stop methods
+- Never: stored `CoroutineScope` on a repository/manager/use case to "make `launch` available"
 
 ## Structured Concurrency
 

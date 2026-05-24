@@ -130,6 +130,32 @@ AnimatedContent(
 
 `SizeTransform` animates container size smoothly during content changes.
 
+### contentKey for sealed UiState / Result wrappers
+
+**For sealed wrappers like `UiState` or `Result<T>`, key `AnimatedContent` on shape, not payload.** `AnimatedContent` re-triggers transitions on every `targetState` change — but payload changes within the same shape (e.g., `Success(items=[1,2,3])` → `Success(items=[1,2,3,4])`) shouldn't cause cross-fades.
+
+```kotlin
+AnimatedContent(
+    targetState = uiState,
+    contentKey = { state ->
+        when (state) {
+            is UiState.Loading -> "loading"
+            is UiState.Success -> "success"  // every Success state shares the key
+            is UiState.Error -> "error"
+        }
+    },
+    label = "uiState",
+) { state ->
+    when (state) {
+        is UiState.Loading -> LoadingScreen()
+        is UiState.Success -> SuccessScreen(state.data)
+        is UiState.Error -> ErrorScreen(state.message)
+    }
+}
+```
+
+Now cross-fade fires only on Loading↔Success↔Error transitions, never on Success-payload updates.
+
 ## Crossfade
 
 Simple content swap with fade effect.
@@ -150,7 +176,19 @@ Lightweight alternative to `AnimatedContent` for simple visibility toggles.
 
 ## updateTransition
 
-Coordinate multiple animated values with a single state.
+**Prefer `rememberTransition` over `updateTransition` for new code.** Both coordinate multiple animated values from one state, but `rememberTransition` is the preferred API in current Compose — it accepts a `MutableTransitionState` for fine-grained start/end control and reuses transition state across navigation. `updateTransition` is retained for source compatibility.
+
+```kotlin
+// PREFERRED — rememberTransition with explicit MutableTransitionState
+val transitionState = remember { MutableTransitionState(false) }.apply {
+    targetState = expanded
+}
+val transition = rememberTransition(transitionState, label = "expand")
+val size by transition.animateDp(label = "size") { if (it) 200.dp else 100.dp }
+val color by transition.animateColor(label = "color") { if (it) Color.Blue else Color.Red }
+```
+
+Legacy form, still works:
 
 ```kotlin
 var expanded by remember { mutableStateOf(false) }
@@ -527,6 +565,20 @@ Use `graphicsLayer` for:
 - Scale (`scaleX`, `scaleY`)
 - Alpha (opacity)
 
+### drawBehind for Animated Background Colors
+
+**For animated background colors, use `drawBehind { drawRect(...) }` instead of `Modifier.background(color)`.** `Modifier.background(color)` reads `color` during composition — every animated frame triggers recomposition. `drawBehind` reads in the draw phase only.
+
+```kotlin
+// SLOWER — animated color forces composition every frame
+val color by animateColorAsState(if (selected) Color.Blue else Color.Gray, label = "bg")
+Box(modifier = Modifier.background(color))
+
+// FASTER — color read in draw phase only
+val color by animateColorAsState(if (selected) Color.Blue else Color.Gray, label = "bg")
+Box(modifier = Modifier.drawBehind { drawRect(color) })
+```
+
 ## Anti-Patterns
 
 ### Don't: Animate visibility with if
@@ -654,6 +706,8 @@ Box(
 ```
 
 **Rule:** Defer state reads to the latest possible phase. Use lambda-based modifiers (`graphicsLayer { }`, `offset { }`) instead of parameter-based modifiers (`graphicsLayer(alpha = ...)`, `offset(x = ...)`).
+
+For state that needs to cross composable boundaries (e.g., `scrollOffset` from parent to child), pass a provider lambda (`scrollOffsetProvider: () -> Int`) instead of a snapshot value, and read it inside `graphicsLayer { translationY = ... }`. See `compose/references/performance.md` for the full pattern.
 
 ---
 
@@ -1467,4 +1521,29 @@ val anim by animateFloatAsState(
     animationSpec = spring(stiffness = Spring.StiffnessMedium),
     label = "anim"
 )
+```
+
+### Don't: Bolt AnimatedContent on top of Navigation destination swaps
+
+**Navigation Compose already animates between destinations** (`NavHost.enterTransition` / `exitTransition` / `popEnterTransition` / `popExitTransition`). Wrapping the destination's content in `AnimatedContent` produces double-animations — the destination swaps, then the new content cross-fades on top of the swap.
+
+The same holds for **Navigation 3**: `NavDisplay` owns its destination transitions, so don't wrap a Nav3 destination's whole content in `AnimatedContent` either. See `references/navigation.md`.
+
+```kotlin
+// WRONG — double-animate
+NavHost(navController, startDestination = "list") {
+    composable("list") {
+        AnimatedContent(targetState = uiState) { ... }  // animates inside an already-animating destination
+    }
+}
+
+// RIGHT — let NavHost own destination transitions; use AnimatedContent for intra-destination state only
+NavHost(
+    navController = navController,
+    startDestination = "list",
+    enterTransition = { slideInHorizontally { it } + fadeIn() },
+    exitTransition = { slideOutHorizontally { -it / 3 } + fadeOut() },
+) {
+    composable("list") { ListScreen(...) }  // no nested AnimatedContent over the whole screen
+}
 ```

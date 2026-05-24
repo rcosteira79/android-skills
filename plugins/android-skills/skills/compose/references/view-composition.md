@@ -1,5 +1,7 @@
 # Jetpack Compose View Composition Reference
 
+**The slot pattern and the `modifier` parameter form one paired API contract:** the caller owns *what to place* (slots) and *placement* (modifier). This file covers the slot side; see `compose/references/modifiers.md` for the modifier authoring rules.
+
 ## Composable Function Naming Conventions
 
 Names communicate intent. Follow these patterns consistently.
@@ -118,6 +120,285 @@ fun CustomLayout(content: @Composable () -> Unit) { ... }
 ```
 
 Source: Material 3 composables in `androidx.compose.material3` use slots extensively.
+
+### Slot Authoring Rules
+
+#### 1. Receiver-scoped slots when the parent's scope is useful
+
+When the slot is rendered inside a standard layout (`Row`, `Column`, `Box`, `LazyListScope`) that exposes useful caller-facing APIs, scope the slot to that receiver. A slot rendered inside a `Row` should be `@Composable RowScope.() -> Unit`; inside a `Box` should be `BoxScope.() -> Unit`.
+
+**WHY:** This is what makes caller-side `RowScope.weight()`, `ColumnScope.weight()`, `BoxScope.matchParentSize()`, and `BoxScope.align()` actually work. Without the receiver, the caller can't reach the layout-specific modifiers the slot's parent layout provides.
+
+**Don't reflexively scope every slot** — only when the parent's scope offers something the caller meaningfully needs. A slot rendered inside a custom `Layout {}` with no public scope shouldn't be scoped just for symmetry.
+
+```kotlin
+// ✅ RIGHT — actions land in a Row; scope lets callers .weight() and .align()
+@Composable
+fun TopAppBar(
+    title: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {},  // scoped: caller gets .weight() / .align()
+) {
+    Row(modifier = modifier) {
+        title()
+        Spacer(Modifier.weight(1f))
+        actions()
+    }
+}
+
+// Caller can do this:
+TopAppBar(
+    title = { Text("Inbox") },
+    actions = {
+        IconButton(onClick = {}) { Icon(Icons.Default.Search, null) }
+        IconButton(onClick = {}) { Icon(Icons.Default.MoreVert, null) }
+    }
+)
+```
+
+```kotlin
+// ❌ WRONG — slot exposes a custom Layout's scope that the caller has no use for
+@Composable
+fun MyCustomLayout(
+    content: @Composable MyInternalScope.() -> Unit,  // internal scope leaks abstraction
+) { ... }
+
+// ✅ RIGHT — keep slot scopeless when the parent's scope has nothing public to offer
+@Composable
+fun MyCustomLayout(content: @Composable () -> Unit) { ... }
+```
+
+#### 2. Optional slots: nullable, not empty-lambda
+
+**DO** use `slot: (@Composable () -> Unit)? = null` for optional slots and branch on `null` to omit spacing/padding/dividers for the absent case.
+
+**DON'T** use `slot: @Composable () -> Unit = {}` for "optional" slots.
+
+**WHY:** An empty lambda is still *invoked* — it just emits nothing. But the parent layout has no way to know it emitted nothing, so any surrounding `Spacer`, padding, divider, or container allocated for that slot stays in the layout, producing ghost space. With `null`, the component branches and *omits* the surrounding layout machinery entirely.
+
+The existing `ListItem` example earlier in this section already follows this pattern — that's the right shape:
+
+```kotlin
+@Composable
+fun ListItem(
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
+    title: @Composable () -> Unit,
+    subtitle: @Composable (() -> Unit)? = null,    // ✅ nullable
+    trailing: @Composable (() -> Unit)? = null     // ✅ nullable
+) {
+    Row(modifier = modifier.padding(16.dp)) {
+        icon()
+        Column(modifier = Modifier.weight(1f)) {
+            title()
+            subtitle?.invoke()                      // ✅ branches: subtitle column has no extra row
+        }
+        trailing?.invoke()                          // ✅ no trailing spacing if absent
+    }
+}
+```
+
+```kotlin
+// ❌ WRONG — empty default leaves ghost space
+@Composable
+fun ListItem(
+    title: @Composable () -> Unit,
+    trailing: @Composable () -> Unit = {},          // ❌ empty lambda
+) {
+    Row {
+        title()
+        Spacer(Modifier.width(8.dp))                // ❌ unconditional — an empty-lambda default gives no signal to omit it
+        trailing()                                  // emits nothing, but the Spacer above already added 8.dp
+    }
+}
+
+// ✅ RIGHT — nullable lets the component omit the spacer
+@Composable
+fun ListItem(
+    title: @Composable () -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Row {
+        title()
+        if (trailing != null) {
+            Spacer(Modifier.width(8.dp))
+            trailing()
+        }
+    }
+}
+```
+
+#### 3. `XxxDefaults` object for composable defaults
+
+When a slot has a sensible default that is itself a composable, expose it via a public `XxxDefaults` companion object — not as an inline default expression on the parameter.
+
+**WHY:** Composable default expressions (`trailingContent: @Composable () -> Unit = { Icon(...) }`) hide the default in the signature, can't be reused by callers who want "the default plus one more thing," and tangle the default's implementation with the API surface. A `XxxDefaults` object mirrors Material 3's convention (`ButtonDefaults`, `CardDefaults`, `TopAppBarDefaults`), is discoverable by IDE autocomplete, and lets callers compose with the default explicitly.
+
+```kotlin
+// ✅ RIGHT
+@Composable
+fun SettingsRow(
+    title: String,
+    modifier: Modifier = Modifier,
+    trailingContent: @Composable () -> Unit = SettingsRowDefaults.Chevron(),
+) {
+    Row(modifier = modifier) {
+        Text(title, modifier = Modifier.weight(1f))
+        trailingContent()
+    }
+}
+
+object SettingsRowDefaults {
+    @Composable
+    fun Chevron() = Icon(
+        Icons.AutoMirrored.Default.KeyboardArrowRight,
+        contentDescription = null,
+    )
+}
+
+// Callers can opt out, opt in, or override:
+SettingsRow(title = "Notifications")                                  // default chevron
+SettingsRow(title = "Logout", trailingContent = {})                   // suppress
+SettingsRow(title = "Theme", trailingContent = { Switch(...) })       // custom
+```
+
+```kotlin
+// ❌ WRONG — default tangled in signature, not reusable
+@Composable
+fun SettingsRow(
+    title: String,
+    trailingContent: @Composable () -> Unit = {
+        Icon(Icons.AutoMirrored.Default.KeyboardArrowRight, null)
+    },
+) { ... }
+```
+
+#### 4. Naming convention
+
+| Slot shape | Naming | Examples |
+|------------|--------|----------|
+| Free-form, multi-element | `xxxContent` or bare `content` | Material 3's `content`, `bottomBar`, `floatingActionButton`, `topBar` |
+| Semantically constrained, singular role | Singular noun | `title`, `actions`, `icon`, `label`, `trailing` |
+
+**WHY:** Material 3 already established this vocabulary — `Scaffold(content = ...)`, `TopAppBar(title = ...)`, `ListItem(trailingContent = ...)`. Matching it makes your APIs feel native to Compose; deviating creates friction.
+
+**DON'T mix bare `content` with other `xxxContent` slots in one component.** Either every free-form slot is `xxxContent` or your single main slot is bare `content` — not both.
+
+```kotlin
+// ❌ WRONG — inconsistent vocabulary inside one signature
+@Composable
+fun MyCard(
+    content: @Composable () -> Unit,
+    headerContent: @Composable () -> Unit,
+    footerContent: @Composable () -> Unit,
+) { ... }
+
+// ✅ RIGHT — pick one
+@Composable
+fun MyCard(
+    headerContent: @Composable () -> Unit,
+    mainContent: @Composable () -> Unit,
+    footerContent: @Composable () -> Unit,
+) { ... }
+
+// ✅ RIGHT — bare `content` for the dominant slot, singular nouns for the constrained ones
+@Composable
+fun MyCard(
+    title: @Composable () -> Unit,
+    actions: @Composable RowScope.() -> Unit,
+    content: @Composable () -> Unit,
+) { ... }
+```
+
+#### 5. Boolean-flag / sealed-variant smells
+
+When you reach for `showChevron: Boolean`, `mode: TrailingMode`, or "I'll model trailing variants with a sealed `Trailing` type" — **that's a slot trying to be born.** Replace it with `xxxContent: @Composable () -> Unit`.
+
+**WHY:** Boolean flags and sealed variants enumerate the cases *you* thought of. A slot lets the caller decide. Every new variant request becomes a caller-side composable, not an API change.
+
+```kotlin
+// ❌ WRONG — boolean flag enumerates one of N future cases
+@Composable
+fun SettingsRow(
+    title: String,
+    showChevron: Boolean = true,        // smell: what about a switch? a badge? a count?
+) { ... }
+
+// ❌ WRONG — sealed variant is just a worse slot
+sealed interface Trailing {
+    data object Chevron : Trailing
+    data object None : Trailing
+    data class Switch(val checked: Boolean, val onChange: (Boolean) -> Unit) : Trailing
+    data class Badge(val count: Int) : Trailing
+}
+
+@Composable
+fun SettingsRow(
+    title: String,
+    trailing: Trailing = Trailing.Chevron,
+) { ... }  // every new variant requires touching the API
+
+// ✅ RIGHT — slot
+@Composable
+fun SettingsRow(
+    title: String,
+    modifier: Modifier = Modifier,
+    trailingContent: @Composable () -> Unit = SettingsRowDefaults.Chevron(),
+) { ... }
+
+// Callers compose any variant freely — no API change needed
+SettingsRow("Wi-Fi", trailingContent = { Switch(checked = on, onCheckedChange = {}) })
+SettingsRow("Inbox", trailingContent = { Badge { Text("99+") } })
+SettingsRow("Logout", trailingContent = {})
+```
+
+#### 6. Partial-slot trap
+
+If you slot the trailing area but keep `leadingIcon: ImageVector` because "leading is always an icon," you've left the API half-rigid for no real reason. **Slot all the variable areas, or none.**
+
+**WHY:** "Leading is always an icon" is a load-bearing assumption that will fail the first time someone needs a `CircularProgressIndicator`, an `Image`, an avatar, or an icon-with-badge in the leading position. A `@Composable () -> Unit` slot costs nothing extra at the call site (the common case is still `{ Icon(...) }`) and absorbs every future variant for free.
+
+```kotlin
+// ❌ WRONG — partial-slot: trailing is flexible, leading is hardcoded to icon
+@Composable
+fun ListItem(
+    title: String,
+    leadingIcon: ImageVector,                       // ❌ rigid: only icons allowed
+    trailingContent: @Composable () -> Unit = {},
+) {
+    Row {
+        Icon(leadingIcon, contentDescription = null)
+        Text(title, Modifier.weight(1f))
+        trailingContent()
+    }
+}
+
+// ✅ RIGHT — both flexible areas are slots
+@Composable
+fun ListItem(
+    title: String,
+    modifier: Modifier = Modifier,
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+) {
+    Row(modifier = modifier) {
+        leadingContent?.invoke()
+        Text(title, Modifier.weight(1f))
+        trailingContent?.invoke()
+    }
+}
+
+// Callers still get the common case cheaply:
+ListItem(
+    title = "Profile",
+    leadingContent = { Icon(Icons.Default.Person, null) },
+)
+// And complex cases work without API changes:
+ListItem(
+    title = "Syncing",
+    leadingContent = { CircularProgressIndicator(Modifier.size(20.dp)) },
+)
+```
 
 ## Extracting Composables
 
@@ -448,6 +729,48 @@ private fun UserDetailsContentPreview() {
 - Public screen composable integrates ViewModel
 - Private content composable is pure, testable, previewable
 - Clear separation: UI logic (public) vs rendering (private)
+
+### Framework state stays in the UI composable
+
+**Framework state is *allowed* in the UI composable** — not over-hoisted to the ViewModel. `LazyListState`, `LazyGridState`, `ScrollState`, `PagerState`, `FocusRequester`, `BringIntoViewRequester`, `Animatable`, `TextFieldState`, and snackbar/drawer state holders are **framework state** (the Compose layer's mechanics), not business state.
+
+**WHY:** Hoisting framework state to a ViewModel couples UI mechanics to the state holder and breaks Compose lifecycle assumptions. Animation suspend functions (`Animatable.animateTo`, `LazyListState.animateScrollToItem`, `BringIntoViewRequester.bringIntoView`) called from `viewModelScope` produce broken behaviour because the animation clock is tied to the composition, not the ViewModel — see `compose/references/state-management.md` for the full failure mode.
+
+**Only business state** — loaded data, screen mode, user inputs that drive queries, anything that must survive configuration change with semantic meaning — belongs in the state holder.
+
+```kotlin
+// ✅ RIGHT — framework state in the UI composable, business state in the ViewModel
+@Composable
+fun ConversationScreen(viewModel: ConversationViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()        // ✅ framework state — stays here
+    val focusRequester = remember { FocusRequester() }  // ✅ framework state — stays here
+
+    LaunchedEffect(uiState.scrollToTopSignal) {
+        listState.animateScrollToItem(0)            // ✅ animation clock owned by composition
+    }
+
+    ConversationContent(
+        uiState = uiState,                          // ✅ business state from VM
+        listState = listState,
+        focusRequester = focusRequester,
+        onAction = viewModel::onAction,
+    )
+}
+```
+
+```kotlin
+// ❌ WRONG — LazyListState hoisted to ViewModel
+class ConversationViewModel : ViewModel() {
+    val listState = LazyListState()                 // ❌ animation clock won't work
+
+    fun scrollToTop() {
+        viewModelScope.launch {
+            listState.animateScrollToItem(0)        // ❌ broken: wrong clock, wrong scope
+        }
+    }
+}
+```
 
 **Anti-pattern:** Passing ViewModel to child composables. Keep it at screen level only.
 

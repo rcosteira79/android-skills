@@ -2,6 +2,26 @@
 
 Compose is declarative, but apps must interact with the imperative world: launch coroutines, register listeners, manage resources. Side effects are the bridge. Understanding when and how to use them is essential for correctness.
 
+## Pick the Smallest Effect That Does the Job
+
+**Pick the smallest effect that does the job.** Reaching for `LaunchedEffect` when `rememberCoroutineScope` would do is overuse; reaching for `SideEffect` when `LaunchedEffect(key)` is needed misses the point.
+
+| Need | API |
+|---|---|
+| Run a coroutine when keys change; cancel when they change again or composable leaves | `LaunchedEffect(keys)` |
+| Run cleanup when keys change or composable leaves | `DisposableEffect(keys) { ... onDispose { ... } }` |
+| Run after every successful composition (no cleanup, no keys) | `SideEffect` |
+| Launch from an event handler (click, gesture, drag) | `rememberCoroutineScope().launch` |
+| Convert non-Compose state source to Compose `State` | `produceState` |
+| Keep latest value of a frequently-changing callback in a long-running effect | `rememberUpdatedState` |
+| Convert Compose state to `Flow` | `snapshotFlow` |
+
+## Effects Are for UI-Owned Work, Not Business Operations
+
+**Composable bodies emit UI; they don't perform business operations.** A network request, database write, or domain validation inside a `LaunchedEffect` is a scope violation, even though the API technically permits it. `LaunchedEffect` is for *UI-owned keyed work* — observing scroll for analytics, debouncing user input, restoring focus after navigation. Move repository/network calls to a ViewModel; the composable receives state.
+
+See `android-skills:android-data-layer` for repository patterns and `compose/references/state-management.md` for the state-hoisting boundary between UI and ViewModel.
+
 ## The Effect Mental Model
 
 Compose recomposes when state changes. Effects are blocks of code that run outside the normal composition and recomposition cycle:
@@ -79,6 +99,23 @@ fun TrackScreenView(screenName: String) {
 
 **Do:** Use for simple, stateless synchronization.
 **Don't:** Use for resource allocation (use `DisposableEffect` instead).
+
+### SideEffect vs Keyed LaunchedEffect for Analytics
+
+**`SideEffect` runs after every successful composition** — use when the action should publish *every time the composable renders*, e.g., mirroring snapshot state to a non-Compose system.
+
+**`LaunchedEffect(key)` runs once per unique key value** — use when the action should fire *once per logical event*, not per recomposition. Example: an impression log fires once when an article becomes visible, not every time it recomposes.
+
+```kotlin
+// SideEffect — mirror current state to a non-Compose observable every frame
+SideEffect { externalStateBridge.update(currentState) }
+
+// LaunchedEffect — fire once per impression
+LaunchedEffect(article.id) { analytics.logImpression(article.id) }
+```
+
+**Do:** Use `LaunchedEffect(key)` for impressions, screen-view events, and anything that should fire once per logical state change.
+**Don't:** Use `SideEffect` for analytics events that should fire once per impression — it will re-fire on every recomposition.
 
 Source: `compose/runtime/runtime/src/commonMain/kotlin/androidx/compose/runtime/Effects.kt`
 
@@ -343,6 +380,26 @@ fun AnimateWithCallback(
 }
 ```
 
+### Anti-Pattern: Using rememberUpdatedState to Avoid Keying
+
+**Don't use `rememberUpdatedState` as a substitute for keying the effect properly.** If the effect should restart when a value changes, key the effect on the value.
+
+```kotlin
+// WRONG — wraps userId in rememberUpdatedState to keep LaunchedEffect(Unit) "stable"
+@Composable
+fun UserLoader(userId: String) {
+    val latestUserId by rememberUpdatedState(userId)
+    LaunchedEffect(Unit) {
+        loadUser(latestUserId)  // value drifts; effect never restarts
+    }
+}
+
+// RIGHT — key on the value
+LaunchedEffect(userId) { loadUser(userId) }
+```
+
+**`rememberUpdatedState` is correct when:** the effect's lifecycle is genuinely 'start once and stay alive' (e.g., a long-running animation, a timer) but a callback inside it should always reflect the latest value (e.g., `onComplete: () -> Unit` that the caller may swap).
+
 ## produceState — Converting Non-Compose State to Compose State
 
 `produceState` converts imperative state sources (callbacks, flows, coroutines) into Compose state.
@@ -509,6 +566,50 @@ fun GoodCapture() {
 
     Button(onClick = { count++ }) { Text("Click") }
 }
+```
+
+### snapshotFlow Without a Terminal Operator
+
+**Flow chains are cold.** Without a terminal operator (`collect`, `first`, `toList`), the chain doesn't execute.
+
+```kotlin
+// WRONG — no terminal; the entire chain is a no-op
+LaunchedEffect(listState) {
+    snapshotFlow { listState.firstVisibleItemIndex }
+        .distinctUntilChanged()
+        .map { viewModel.onScroll(it) }  // never runs
+}
+
+// RIGHT — use onEach for side effects (not map) and a terminal collect
+LaunchedEffect(listState) {
+    snapshotFlow { listState.firstVisibleItemIndex }
+        .distinctUntilChanged()
+        .collect { viewModel.onScroll(it) }
+}
+```
+
+See `android-skills:kotlin-flows` for the cold-vs-hot distinction and terminal-operator rules.
+
+### Event-Flag State to Trigger LaunchedEffect
+
+**Don't manufacture event-flag state to trigger an effect — the click already is the event.**
+
+```kotlin
+// WRONG — invented state machine for what's already a single event
+var shouldShowSnackbar by remember { mutableStateOf(false) }
+LaunchedEffect(shouldShowSnackbar) {
+    if (shouldShowSnackbar) {
+        snackbarHostState.showSnackbar("Done")
+        shouldShowSnackbar = false
+    }
+}
+Button(onClick = { shouldShowSnackbar = true }) { Text("Save") }
+
+// RIGHT — coroutine scope in the event handler
+val scope = rememberCoroutineScope()
+Button(onClick = {
+    scope.launch { snackbarHostState.showSnackbar("Done") }
+}) { Text("Save") }
 ```
 
 ---

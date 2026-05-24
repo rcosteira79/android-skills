@@ -386,23 +386,12 @@ fun ShareButton(text: String) {
     }) { Text("Share") }
 }
 
-// Good: Abstract behind expect/actual
-// commonMain
-expect fun shareText(text: String)
-
-// androidMain
-actual fun shareText(text: String) {
-    val intent = Intent(Intent.ACTION_SEND).apply { putExtra(Intent.EXTRA_TEXT, text) }
-    applicationContext.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-}
-
-// iosMain
-actual fun shareText(text: String) {
-    val controller = UIActivityViewController(listOf(text), null)
-    UIApplication.sharedApplication.keyWindow?.rootViewController
-        ?.presentViewController(controller, true, null)
-}
+// Good: a commonMain `interface ShareSheet { suspend fun shareText(text: String) }`,
+// with an Android binding that is Activity-owned (NOT applicationContext) and an iOS
+// binding over UIActivityViewController.
 ```
+
+Two traps, both detailed in `android-skills:kmp-boundaries`: don't use `applicationContext + FLAG_ACTIVITY_NEW_TASK` (a share sheet is a UI op needing a foreground `Activity`; the flag papers over missing lifecycle ownership), and prefer a common interface over `expect fun` (an `expect fun` can't be faked in common tests and can't hold an `Activity`). That skill carries the full Android/iOS bindings and how the `Activity` reaches the constructor.
 
 **2. Compose Compiler 2.0.0 incorrect stability inference on non-JVM targets**
 

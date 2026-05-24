@@ -2,7 +2,7 @@
 
 Skills for Android and KMP development — covering architecture, data layer, networking, testing, debugging, Jetpack Compose, coroutines, flows, Gradle, and RxJava migration. Works as a plugin for Claude Code and Copilot CLI.
 
-Several skills in this collection were inspired by or built on top of work from the community — specifically [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) and [compose-skill](https://github.com/aldefy/compose-skill). Skills with no attribution tag are original work.
+Several skills in this collection were inspired by or built on top of work from the community — specifically [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills), [compose-skill](https://github.com/aldefy/compose-skill), and [chrisbanes/skills](https://github.com/chrisbanes/skills). Skills with no attribution tag are original work.
 
 ## Installation
 
@@ -72,10 +72,12 @@ Senior Android engineering knowledge and best practices for Android and KMP proj
 ### `android-tdd`
 Test-driven development for Android/KMP — extends TDD with Android's three-tier test model, fake-first strategy, coroutine testing, Compose UI testing, and Roborazzi screenshot testing.
 
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
+
 ### `android-ux`
 Material Design 3 UX principles for Android — touch targets (48×48dp), 8dp spacing grid, navigation patterns (Bottom Bar, Rail, Drawer), canonical layouts (Feed, List-Detail, Supporting Pane), foldable postures (tabletop, book mode), M3 contrast levels, safe area handling, accessibility, animation timing, keyboard input types, and an M3 compliance audit that scores screens across 10 categories.
 
-> M3 contrast levels, canonical layouts, and foldable posture patterns inspired by [material-3-skill](https://github.com/hamen/material-3-skill)
+> Inspired by [material-3-skill](https://github.com/hamen/material-3-skill)
 
 ### `android-debugging`
 Debugging Android and KMP issues — Logcat, ADB, ANR traces, R8 stack trace decoding, memory leaks, Gradle build failures, and Compose recomposition bugs.
@@ -90,13 +92,19 @@ Dispatcher selection, scope management, structured concurrency, cancellation, ex
 
 > Incorporates material from [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
 
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
+
 ### `kotlin-flows`
 Flow type selection (`Flow`/`StateFlow`/`SharedFlow`), operator chains, callback bridging, lifecycle-safe collection, Channel migration, and UI state management.
 
-### `compose`
-Jetpack Compose expert guidance — state management (`@Composable`, `remember`, `mutableStateOf`, `derivedStateOf`, state hoisting), Modifier chains, lazy lists, navigation, animation, side effects, theming, accessibility, and performance optimization.
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
-> Forked from [compose-skill](https://github.com/aldefy/compose-skill). The reference docs share the same foundation, but this version replaces the bundled static AndroidX source snapshots with live source verification via [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp) (preferred) or the `android-source-search` skill — always up to date, zero context overhead.
+### `compose`
+Jetpack Compose expert guidance — state management (`@Composable`, `remember`, `mutableStateOf`, `derivedStateOf`, state hoisting), Modifier chains, lazy lists, navigation, animation, side effects, theming, accessibility, performance optimization, and focus/key-event navigation (`FocusRequester`, `focusable`, `focusProperties`, D-pad/TV/ChromeOS, lazy-list focus restoration, dialog focus traps, predictive-back, and testing with `performKeyInput` + `assertIsFocused`).
+
+> Forked from [compose-skill](https://github.com/aldefy/compose-skill) — reference docs rebased on live source verification instead of the upstream's bundled AndroidX snapshots.
+
+> Incorporates patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `rxjava-migration`
 Triggered only when you explicitly ask to migrate. Assesses complexity, maps RxJava types and operators to coroutines equivalents, and provides interop patterns for incremental migration.
@@ -112,6 +120,11 @@ Retrofit setup for Android — service interface patterns (`@GET`, `@POST`, `@Pa
 Ktor client setup for KMP and Android — per-platform engine selection (OkHttp/Darwin/CIO), `kotlinx.serialization` configuration, bearer token auth with refresh via the `Auth` plugin, `MockEngine` testing, and error mapping at the repository boundary.
 
 > Inspired by [compose-skill](https://github.com/Meet-Miyani/compose-skill) (Meet-Miyani)
+
+### `kmp-boundaries`
+Designing Kotlin Multiplatform boundaries — choosing between `expect`/`actual`, common interfaces with platform bindings, or separate platform screens. Covers capability granularity (split by capability, not one `Platform` object), the thin-actuals rule, source-set hierarchies (`skikoMain`, `appleMain`), and Compose Multiplatform leaf positioning.
+
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `android-data-layer`
 Data layer implementation — Repository pattern as single source of truth, Room DAOs with `Flow`, offline-first strategies (stale-while-revalidate, outbox pattern), and model mapping between DTO/entity/domain types.
@@ -146,6 +159,7 @@ Gradle build optimisation — Build Scans, configuration cache, build cache, kap
 - [material-3-skill](https://github.com/hamen/material-3-skill) — comprehensive Material Design 3 reference covering 30+ components, design tokens, theming, responsive layout, and dynamic color across platforms
 - [compose_skill](https://github.com/hamen/compose_skill) — strict, evidence-based Compose audit skill that scores repos on performance, state management, side effects, and API quality using automated Compose Compiler reports
 - [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) — broad Compose + KMP skill covering MVI/MVVM, Navigation 2 & 3, Ktor, Koin/Hilt, Room, DataStore, Paging, and iOS interop; inspired the `kmp-ktor` skill in this repo
+- [chrisbanes/skills](https://github.com/chrisbanes/skills) — Chris Banes' narrow, opinionated Compose and Kotlin skills covering state authoring, side effects, recomposition performance, stability diagnostics, focus navigation, UI testing patterns, structured concurrency, flow primitive selection, and KMP expect/actual boundaries; informed the `kmp-boundaries` and `focus-navigation` references and authoring rules across several existing skills
 - [android-reverse-engineering-skill](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) — Claude Code plugin for decompiling APKs, extracting API endpoints, and tracing call flows
 
 ## License

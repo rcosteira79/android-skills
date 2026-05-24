@@ -5,13 +5,13 @@ description: >
   and Web. Covers state management, composition, animations, navigation, performance,
   design-to-code workflows, and production crash patterns, backed by source analysis from
   androidx/androidx and JetBrains/compose-multiplatform-core. Use whenever the user mentions
-  Compose, @Composable, remember, LaunchedEffect, Scaffold, NavHost, MaterialTheme,
+  Compose, @Composable, remember, LaunchedEffect, Scaffold, NavHost, NavDisplay, MaterialTheme,
   LazyColumn, Modifier, recomposition, Compose Multiplatform/CMP, commonMain, expect/actual,
   ComposeUIViewController, UIKitView, ComposeViewport, Res.drawable/Res.string, or any
-  Compose API. Also trigger on phrases like "Android/Kotlin UI", "compose layout/navigation/animation",
-  "material3", "desktop/iOS/web compose", "design to compose", "build this UI",
+  Compose API. Also trigger on phrases like "design to compose", "build this UI",
   "implement this design", or any modern Kotlin UI question — including casual mentions
-  like "my compose screen is slow".
+  like "my compose screen is slow". Plus focus topics: FocusRequester,
+  focusProperties, onPreviewKeyEvent, D-pad, TV remote, ChromeOS, androidx.tv.material3.
 ---
 
 # Compose Expert Skill
@@ -47,12 +47,13 @@ Read the relevant reference file(s) from `references/` before answering:
 | `LaunchedEffect`, `DisposableEffect`, `SideEffect`, `rememberCoroutineScope` | `references/side-effects.md` |
 | `CompositionLocal`, `LocalContext`, `LocalDensity`, custom locals | `references/composition-locals.md` |
 | `LazyColumn`, `LazyRow`, `LazyGrid`, `Pager`, keys, content types | `references/lists-scrolling.md` |
-| `NavHost`, type-safe routes, deep links, shared element transitions | `references/navigation.md` |
+| `NavHost`, type-safe routes, deep links, shared element transitions, Navigation 3 (`NavDisplay`, back-stack-as-state) | `references/navigation.md` |
 | `animate*AsState`, `AnimatedVisibility`, `Crossfade`, transitions | `references/animation.md` |
 | `MaterialTheme`, `ColorScheme`, dynamic color, `Typography`, shapes | `references/theming-material3.md` |
 | Touch targets, spacing, canonical layouts, foldables, M3 compliance audit | `android-skills:android-ux` |
 | Recomposition skipping, stability, baseline profiles, benchmarking | `references/performance.md` |
 | Semantics, content descriptions, traversal order, testing | `references/accessibility.md` |
+| `FocusRequester`, `focusable()`, `focusProperties`, key events, D-pad, TV, keyboard, focus restoration | `references/focus-navigation.md` |
 | Removed/replaced APIs, migration paths from older Compose versions | `references/deprecated-patterns.md` |
 | **Styles API** (experimental): `Style {}`, `MutableStyleState`, `Modifier.styleable()` | `references/styles-experimental.md` |
 | Figma/screenshot decomposition, design tokens, spacing, modifier ordering | `references/design-to-compose.md` |

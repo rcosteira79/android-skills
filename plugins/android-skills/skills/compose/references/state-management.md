@@ -63,6 +63,22 @@ var user by rememberSaveable(stateSaver = userSaver) { mutableStateOf(User(1, "A
 
 **Pitfall:** Assuming `rememberSaveable` works with all types. Custom classes need explicit `Saver` or `@Parcelize`. See `SaveableStateRegistry` in `androidx.compose.runtime.saveable`.
 
+**DON'T try to save runtime objects with `rememberSaveable`** — `LazyListState`, `FocusRequester`, `CoroutineScope`, callbacks, lambdas. Savers serialize data; runtime references don't survive process death and shouldn't try. If you need scroll position after process death, persist the *index* (an `Int`) and re-create the `LazyListState` from it, or hoist that piece of data to a ViewModel / `SavedStateHandle`.
+
+```kotlin
+// WRONG — runtime object, no meaningful serialization
+val listState = rememberSaveable { LazyListState() }
+val focusRequester = rememberSaveable { FocusRequester() }
+
+// RIGHT — save the data, recreate the runtime object
+var savedIndex by rememberSaveable { mutableIntStateOf(0) }
+val listState = rememberLazyListState(initialFirstVisibleItemIndex = savedIndex)
+LaunchedEffect(listState) {
+    snapshotFlow { listState.firstVisibleItemIndex }
+        .collect { savedIndex = it }
+}
+```
+
 ## State Hoisting
 
 Move state up to a parent composable to enable reusability and testing.
@@ -95,6 +111,52 @@ fun StatefulCounter() {
 ```
 
 **Rule:** Push state as high as needed, but no higher. If only one child needs state, keep it there. If multiple children or parents need it, hoist up.
+
+### Where State Belongs
+
+**Hoist only as far as the logic needs.** Four tiers from lowest to highest:
+
+| Tier | Location | Use when |
+|---|---|---|
+| 1 | Local `remember` in the composable | State read/written only inside this composable |
+| 2 | Hoisted to lowest common composable ancestor | Multiple siblings need it; no business logic depends on it |
+| 3 | Plain state holder class (composition-scoped) | Operations cluster (clear/submit/jumpToTop); derived flags scatter; children receive mechanics they don't own |
+| 4 | Screen-level state holder / ViewModel | State drives or is driven by business logic — repository, navigation, validation |
+
+**Triggers for extracting a plain state holder (tier 3, >=2 of these):**
+- Named operations cluster (`clear()`, `submit()`, `jumpToTop()`)
+- Derived flags scattered across composables
+- Children receive mechanics they don't own
+- Scope-bound objects (`LazyListState`, `FocusRequester`, `CoroutineScope`) cluster together
+
+**Counter-trigger:** don't extract for one boolean. Ceremony is not separation of concerns.
+
+WHY: each tier costs something — scope, ceremony, lifecycle assumptions. Hoisting too high couples local UI to business logic and pollutes the ViewModel; hoisting too low blocks reuse and forces duplicate logic in siblings. The "State Holder Class Pattern" below shows the tier-3 shape; the "State in ViewModels" section shows the tier-4 shape.
+
+**If UI element state is an input to business logic, it may need to live in the screen state holder (tier 4) — not local.** Example: a search query that feeds repository queries belongs in the ViewModel, not in a local `remember { mutableStateOf("") }`. Even if it 'feels like UI state,' the moment it drives a network/database call, hoist it. The boundary isn't "is this UI?" — it's "does my repository or navigation graph depend on this value?"
+
+```kotlin
+// WRONG — search query is UI-local, but every keystroke needs to hit the repository
+@Composable
+fun SearchScreen(viewModel: SearchViewModel) {
+    var query by remember { mutableStateOf("") }  // hidden from VM; can't debounce, can't restore, can't test
+    LaunchedEffect(query) { viewModel.search(query) }
+}
+
+// RIGHT — query lives in the VM, which owns debouncing and the repository call
+class SearchViewModel : ViewModel() {
+    private val _query = MutableStateFlow("")
+    val query = _query.asStateFlow()
+    val results = _query
+        .debounce(300)
+        .flatMapLatest { repository.search(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun onQueryChange(new: String) { _query.value = new }
+}
+```
+
+See `compose/references/view-composition.md` for the composable-shape side of this split (stateful wrapper vs stateless content).
 
 ## derivedStateOf
 
@@ -200,6 +262,31 @@ items[0] = items[0].copy(name = "Updated")
 ```
 
 See source: `androidx.compose.runtime.snapshots` for collection implementation.
+
+## Read-Only Composables
+
+Mark composable functions and properties as `@ReadOnlyComposable` when they're pure readers — no `Box`/`Text` emit, no `remember`, no effects, no recompose-triggering writes. Reading them takes a faster runtime path; mis-marking breaks composition.
+
+**Bidirectional contract — both directions must hold:**
+- Add `@ReadOnlyComposable` only when every call inside is itself read-only (`@Composable` getter, `MaterialTheme.colorScheme`, `LocalDensity.current`, simple property access).
+- Remove it the moment you call `Box`, `Text`, `remember`, or any effect — including inside content lambdas.
+
+**Common case — design token accessors:**
+```kotlin
+val MaterialTheme.spacing: Spacing
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalSpacing.current
+```
+
+**When it doesn't apply:**
+- Inside `remember { ... }` producer blocks
+- Inside non-composable lambdas (`onClick = { ... }`)
+- In plain helper functions (not `@Composable`)
+
+WHY: the read-only fast path skips the bookkeeping needed to host child composables or restartable groups. If a `@ReadOnlyComposable` function ever emits UI or calls `remember`, the runtime silently corrupts the composition slot table — the symptom is usually crashes deeper in the tree, not at the call site. The annotation is an opt-in performance contract, not documentation.
+
+See `compose/references/side-effects.md` for the side-effect-bearing counterpart (`LaunchedEffect`, `DisposableEffect`, etc., which are explicitly *not* read-only).
 
 ## @Stable and @Immutable Annotations
 
@@ -342,6 +429,67 @@ fun Counter() {
     Button(onClick = { count++ }) { Text(count.toString()) }
 }
 ```
+
+### State in `@Composable` Content Lambdas
+
+```kotlin
+// WRONG — content lambdas inside layouts are themselves @Composable; var resets every recomposition
+Row {
+    var count = 0  // resets to 0 on every recomposition of Row
+    Button(onClick = { count++ }) { Text("Count: $count") }
+}
+
+// RIGHT — remember inside the content lambda
+Row {
+    var count by remember { mutableIntStateOf(0) }
+    Button(onClick = { count++ }) { Text("Count: $count") }
+}
+```
+
+WHY: the bare-`var` trap fires inside `@Composable` content lambdas too, not just at function scope. Every `Row { ... }`, `Column { ... }`, `Box { ... }`, `LazyColumn { items { ... } }` body is its own `@Composable` block — anything declared there without `remember` runs on every recomposition. The rule is positional, not lexical: *if the code is `@Composable`, plain `var` resets.*
+
+### Mutating a List Held by `mutableStateOf`
+
+```kotlin
+// WRONG — mutating a MutableList held by mutableStateOf bypasses the State setter
+val items = remember { mutableStateOf(mutableListOf<Item>()) }
+items.value.add(Item(...))  // list reference unchanged; no recomposition
+
+// RIGHT — mutableStateListOf for observable list state
+val items = remember { mutableStateListOf<Item>() }
+items.add(Item(...))  // observable
+
+// OR — replace the reference for mutableStateOf<List<T>>
+val items = remember { mutableStateOf<List<Item>>(emptyList()) }
+items.value = items.value + Item(...)
+```
+
+WHY: mutating the underlying list doesn't change the State's value reference — no recomposition fires. `mutableStateOf` observes assignments to `.value`, not mutations of the object behind it. `mutableStateListOf` is the snapshot-aware collection that observes structural changes; otherwise treat the list as immutable and replace the reference. See "SnapshotStateList and SnapshotStateMap" above for the element-mutation variant of the same trap.
+
+### Animation Suspend From `viewModelScope`
+
+```kotlin
+// WRONG — animation suspend launched from viewModelScope
+class FeedViewModel : ViewModel() {
+    fun scrollToTop(listState: LazyListState) {
+        viewModelScope.launch { listState.animateScrollToItem(0) }  // wrong scope
+    }
+}
+
+// RIGHT — animation runs in a composition-scoped coroutine
+@Composable
+fun FeedScreen(viewModel: FeedViewModel = hiltViewModel()) {
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    LaunchedEffect(viewModel.events) {
+        viewModel.events.collect { event ->
+            if (event is ScrollToTop) scope.launch { listState.animateScrollToItem(0) }
+        }
+    }
+}
+```
+
+WHY: animation suspend functions (`animateScrollToItem`, `animateTo`, `Animatable.animateTo`) require a composition-scoped coroutine. `viewModelScope` outlives the composition — when the composable leaves the tree, the animation keeps running against a `LazyListState` whose UI no longer exists, producing stale state writes, leaked `MonotonicFrameClock` subscriptions, and broken animations after configuration change. The ViewModel emits *intents* (events); the composition decides *how* to render them. See `android-skills:kotlin-coroutines` for the general rule on scope ownership.
 
 ### Reading State in Wrong Scope
 ```kotlin

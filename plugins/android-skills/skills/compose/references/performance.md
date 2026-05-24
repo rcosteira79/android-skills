@@ -1,5 +1,16 @@
 # Performance Optimization Reference
 
+## Two Axes: Stability and Phase
+
+Recomposition perf issues split into two independent axes — **parameter stability** (does Compose skip this composable?) and **state-read phase** (when does a state read trigger recomposition?). Decide which axis fits the evidence before applying fixes:
+
+- **Stability axis** — composable runs even though inputs didn't change. Diagnose with compiler reports (`*_composables.txt`, `*_classes.txt`) and the strong-skipping rules below. Fixes: stable types, `@Immutable`/`@Stable`, `stabilityConfigurationFiles`, immutable collections.
+- **Phase axis** — composable runs because a state read happened in composition that could have happened in layout or draw. Diagnose with Layout Inspector recomposition counts. Fixes: provider lambdas, `Modifier.offset { }`, `Modifier.graphicsLayer { }`, `derivedStateOf`.
+
+**Don't apply this skill when** recomposition tracks real data changes (correctness, not cost) or when no profiler/compiler signal suggests a problem. Premature stability annotations and `remember` wrapping cost more than they save.
+
+---
+
 ## Three Phases: Composition, Layout, Drawing
 
 Every frame consists of three phases. Understanding state reads in each phase prevents unnecessary recompositions.
@@ -24,17 +35,21 @@ Every frame consists of three phases. Understanding state reads in each phase pr
 
 ## Recomposition Skipping with Compiler Reports
 
-The Compose compiler generates `$changed` bitmasks to detect state changes. Enable compiler reports to inspect stability and skippability:
+The Compose compiler generates `$changed` bitmasks to detect state changes. Enable compiler reports **on demand** (opt-in via a Gradle property) so they don't generate on every build:
 
 ```kotlin
 // build.gradle.kts
 composeCompiler {
-    reportsDestination = layout.buildDirectory.dir("compose_reports")
-    metricsDestination = layout.buildDirectory.dir("compose_metrics")
+    if (project.findProperty("composeReports") == "true") {
+        reportsDestination = layout.buildDirectory.dir("compose_reports")
+        metricsDestination = layout.buildDirectory.dir("compose_metrics")
+    }
 }
 ```
 
-After building (`./gradlew assembleRelease`), check the generated files in `build/compose_reports/`:
+Run with `./gradlew assembleRelease -PcomposeReports=true` when you actually want a report. WHY: report generation slows incremental builds and pollutes `build/` for every developer; gating it keeps the default path fast.
+
+After building, check the generated files in `build/compose_reports/`:
 
 - **`*_composables.txt`** — shows each composable's restartability and skippability:
   ```
@@ -48,13 +63,20 @@ After building (`./gradlew assembleRelease`), check the generated files in `buil
   unstable class ScreenState { unstable val items: List<Item> }
   ```
 
-A composable missing `skippable` means the compiler cannot skip it during recomposition, even when inputs haven't changed. Fixing instability requires understanding *why* the type is unstable — check the `*_classes.txt` report to identify which properties the compiler considers unstable, then work inward:
+With Kotlin 2.0.20+ and strong skipping on by default, the legacy "missing skippable means not skippable" reading is wrong — almost everything is skippable now. The diagnostic question is no longer "is this composable skippable at all?" but **"will these parameters compare the way I expect, and are callers creating new unstable instances every frame?"**
 
-- **Unstable collection types** (`List`, `Set`, `Map`) — replace with `kotlinx.collections.immutable` equivalents (`ImmutableList`, `ImmutableSet`, `ImmutableMap`)
-- **All properties are stable but the class itself is not annotated** — add `@Stable` or `@Immutable` (only if the contract genuinely holds — `@Stable` on a class with deeply unstable inner types is a lie that causes skipped recompositions and stale UI)
-- **Inner types are themselves unstable** — fix the inner types first, then the outer type becomes stable. This can cascade several levels deep
-- **Cross-module boundary** — the compiler can't infer stability across module boundaries. Add the class to `compose-stability-config.txt` to declare it stable globally
-- **Pragmatic opt-out** — `@Suppress("ComposeUnstableCollections")` per-function when the instability is harmless and the refactoring cost is not justified
+Under strong skipping:
+- **Stable parameters** compare with `equals()` — value equality decides whether to skip.
+- **Unstable parameters** compare with `===` (instance equality) — the same instance skips, a new instance recomposes.
+- **Lambdas inside composables** are automatically remembered based on their captures — they no longer break skipping just by existing.
+
+So when the report shows a composable as skippable but Layout Inspector shows it recomposing constantly, look at the call site: a caller probably allocates a new unstable instance every frame (`listOf(...)`, `Modifier.X.Y()`, an ad-hoc data class). Fixing instability still matters — but now mostly to turn `===` comparisons back into `equals()`:
+
+- **Unstable collection types** (`List`, `Set`, `Map`) — replace with `kotlinx.collections.immutable` equivalents (`ImmutableList`, `ImmutableSet`, `ImmutableMap`) so equality is meaningful.
+- **All properties are stable but the class itself is not annotated** — add `@Stable` or `@Immutable` (only if the contract genuinely holds — `@Stable` on a class with deeply unstable inner types is a lie that causes skipped recompositions and stale UI).
+- **Inner types are themselves unstable** — fix the inner types first, then the outer type becomes stable. This can cascade several levels deep.
+- **Cross-module boundary** — the compiler can't infer stability across module boundaries. Use `stabilityConfigurationFiles` (see below) to declare these types stable globally.
+- **Pragmatic opt-out** — `@Suppress("ComposeUnstableCollections")` per-function when the instability is harmless and the refactoring cost is not justified.
 
 ### Stability — @Stable and @Immutable
 
@@ -84,34 +106,75 @@ fun PersonCard(person: Person) {
 
 **Avoid**: `@Stable` on data classes with mutable fields or non-final properties.
 
----
+### `@Immutable` vs `@Stable` — the boundary
 
-## Strong Skipping Mode (Default)
+- **`@Immutable`** — use when every property is effectively immutable and `equals()` describes all observable state. The compiler is then free to skip recomposition whenever the previous and current values are `equals`-equal.
+- **`@Stable`** — use for types whose mutable state is observable to Compose, typically via `MutableState`. You're promising that *any* state change a consumer can observe will be flagged through a Compose snapshot, so the compiler can compare by identity and still get correct results.
 
-Android Gradle Plugin 8.0+ and Compose compiler 1.5.0+ enable **strong skipping mode**. This changes how lambdas are treated:
+WHY the distinction matters: `@Immutable` is a stricter promise (no mutation at all) and lets the compiler skip more aggressively. `@Stable` is the right call for things like ViewModels and snapshot-backed holders — anything where state mutates but the mutation routes through `MutableState`/snapshots.
 
-Without strong skipping, every lambda is unstable. With it enabled:
-- Lambdas become stable if all captured variables are stable
-- Fewer unnecessary recompositions
+**Don't annotate to silence a report.** A false stability promise produces *skipped recompositions and stale UI* — the worst failure mode, because the bug is silent and hard to reproduce. If the contract doesn't hold, fix the underlying type or live with the recomposition.
+
+### Cross-module stability via `stabilityConfigurationFiles`
+
+The Compose compiler can't infer stability for types from other modules or third-party libraries (`java.time.*`, `java.math.BigDecimal`, `kotlinx.datetime.*`, etc.). Declare them stable globally with `stabilityConfigurationFiles`:
 
 ```kotlin
-// With strong skipping: lambda is stable if count is stable
+// build.gradle.kts
+composeCompiler {
+    stabilityConfigurationFiles.add(
+        rootProject.layout.projectDirectory.file("compose_stability.conf")
+    )
+}
+```
+
+Sample `compose_stability.conf`:
+
+```
+java.math.BigDecimal
+java.time.LocalDate
+java.time.LocalDateTime
+java.time.Instant
+kotlinx.datetime.Instant
+kotlinx.datetime.LocalDate
+```
+
+WHY this is safer than `@Suppress` or wrapping the type: the promise lives in one config file you can review, not scattered across composables. WHY this is more dangerous than annotations: there's no compile-time check that the listed type actually is immutable.
+
+**Only list types you're willing to promise are immutable.** Do NOT list mutable types like `java.util.Date`, `java.util.Calendar`, or anything backed by mutable internal state — listing them lies to the compiler and causes stale UI for the same reason a wrong `@Immutable` does.
+
+---
+
+## Strong Skipping Mode (Default in Kotlin 2.0.20+)
+
+Strong skipping is the default with the Compose compiler shipped in Kotlin 2.0.20+. Drop the old "missing skippable means not skippable" mental model — under strong skipping, the rules are:
+
+- **Stable parameters** compare with `equals()`. Two equal instances skip.
+- **Unstable parameters** compare with `===` (instance equality). The same instance skips; a new instance recomposes — even if `equals()` would have returned `true`.
+- **Lambdas inside composables** are automatically remembered based on their captures. You don't need `remember { { ... } }` to keep an `onClick` stable across recompositions; the compiler does it for you.
+
+```kotlin
+// Strong skipping in action
 @Composable
-fun Counter(count: Int) {
-    Button(onClick = { println(count) }) {  // Stable lambda
+fun Counter(count: Int, onClick: () -> Unit) {
+    // 'onClick' is auto-remembered; stable across recompositions of the caller
+    Button(onClick = onClick) {
         Text("Count: $count")
     }
 }
 ```
 
-Check `build.gradle.kts`:
+WHY this matters for diagnosis: the right question shifts from "is this composable skippable?" (almost always yes) to **"will my parameters compare the way I expect, and are callers creating new unstable instances every frame?"** A skippable composable that still recomposes is almost always a call-site problem — a fresh `List`, `Modifier` chain, or ad-hoc object on each parent recomposition — not a missing annotation on the callee.
+
+Verify the toolchain is recent enough to get strong skipping:
+
 ```kotlin
-android {
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.0"
-    }
-}
+// libs.versions.toml
+[versions]
+kotlin = "2.0.20"  // or newer
 ```
+
+If you're stuck on an older Kotlin, the legacy "missing skippable" diagnosis from older guides still applies — but plan the upgrade rather than papering over it.
 
 ---
 
@@ -141,6 +204,46 @@ fun Box(offsetX: State<Float>) {
 ```
 
 Use `Modifier.offset { }` (lambda) instead of `Modifier.offset()` (parameter) for state-dependent positioning.
+
+### Provider Lambdas Across Composable Boundaries
+
+When state needs to cross a composable boundary, pass a **provider lambda** — not a snapshot value. Reading the value at the call site triggers recomposition of the parent every time the value changes; reading inside the consumer's layout/draw block defers it.
+
+```kotlin
+// WRONG — snapshot value crosses boundary, parent recomposes every frame
+@Composable
+fun HomeScreen(scrollOffset: Int) {
+    HeroImage(scrollOffset = scrollOffset)
+}
+
+// RIGHT — provider lambda; HeroImage reads inside graphicsLayer's block
+@Composable
+fun HomeScreen(scrollOffsetProvider: () -> Int) {
+    HeroImage(scrollOffsetProvider = scrollOffsetProvider)
+}
+
+@Composable
+fun HeroImage(scrollOffsetProvider: () -> Int) {
+    Image(
+        painter = painterResource(R.drawable.hero),
+        contentDescription = null,
+        modifier = Modifier.graphicsLayer { translationY = -scrollOffsetProvider() / 2f },
+    )
+}
+```
+
+WHY this works: the value read happens inside `graphicsLayer { ... }`, which runs in the draw phase. The state read is recorded against the draw scope, not the composition, so changes invalidate only the layer — not `HeroImage`, not `HomeScreen`.
+
+**The `by` delegate is the smell.** When you write `val offset by scrollOffsetState`, you've unwrapped the snapshot at the read site. Keep the value as `State<T>` (or expose `() -> T`) so it can survive crossing the boundary as a provider. By the time you've unwrapped it, the only way to defer is to re-wrap it — usually clunkier than just not unwrapping in the first place.
+
+**Deferral sites** (where state reads stay out of composition):
+- `Modifier.offset { }` — layout phase
+- `Modifier.graphicsLayer { }` — draw phase, the cheapest of all
+- `Modifier.layout { }` — layout phase, custom measure/place
+- Custom `Alignment.align(...)` — layout phase
+- `drawWithContent`, `drawBehind`, `drawWithCache` — draw phase
+
+Pick the latest phase your transformation tolerates: `graphicsLayer` for translation/rotation/alpha (no relayout needed), `offset { }`/`layout { }` when child position affects siblings, `drawBehind` for raw drawing.
 
 ---
 
@@ -462,11 +565,29 @@ data class User(val name: String, val age: Int)
 
 ---
 
+## Symptom → Diagnosis → Fix
+
+Use this table to route from observed behavior to the right axis (stability vs phase) before reaching for a fix:
+
+| Symptom | Diagnosis | Fix |
+|---|---|---|
+| Composable skips poorly despite strong skipping | New unstable instance each recomposition | Remember, hoist, or make the type stable |
+| Draw block recomposes every frame | Value read before draw block | Move `State.value` read inside draw block; use provider lambda for cross-boundary state |
+| Regression after adding type to a data class | Cross-module type is unstable | Add to `stabilityConfigurationFiles` or annotate `@Immutable` |
+| LazyColumn item recomposes on every scroll | Lambda captured from parent | Cache the lambda with `remember` or hoist the source out of the item |
+| Animation triggers recomposition per frame | Animated state read in composition | Read inside `graphicsLayer { }` or `offset { }` block |
+
+WHY a table here: the same surface symptom ("too many recompositions") routes to wildly different fixes depending on axis. Reach for the table before guessing whether the cause is stability or phase.
+
+---
+
 ## Resources
 
 - **Compose Compiler Reports**: https://developer.android.com/develop/ui/compose/performance/stability-report
 - **Macrobenchmark**: https://developer.android.com/develop/ui/compose/performance/measurement
 - **Baseline Profiles**: https://developer.android.com/develop/ui/compose/performance/baseline-profiles
+- **Strong Skipping Mode**: https://developer.android.com/develop/ui/compose/performance/stability/strongskipping
+- **Compose Stability Configuration**: https://developer.android.com/develop/ui/compose/performance/stability/fix#configuration-file
 
 ---
 

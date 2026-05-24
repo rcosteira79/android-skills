@@ -109,6 +109,10 @@ In tests, inject `UnconfinedTestDispatcher` or `StandardTestDispatcher` from `ko
 
 Use `createComposeRule()` for component tests, `createAndroidComposeRule()` for integration tests needing Activity.
 
+### Semantics first, `testTag` as fallback
+
+Prefer user-visible semantics — text, `contentDescription`, role, focused/toggled/selected state — over `testTag`. Real users (and screen readers) see semantics; `testTag` is invisible to everyone except tests.
+
 ```kotlin
 @get:Rule
 val composeTestRule = createComposeRule()
@@ -123,12 +127,78 @@ fun `given loading state, when screen renders, then shows progress indicator`() 
         LoginScreen(uiState = inputState, onLogin = {})
     }
 
-    // Then
-    composeTestRule.onNodeWithTag("loading_indicator").assertIsDisplayed()
+    // Then — semantics-first: assert what the user sees
+    composeTestRule.onNodeWithContentDescription("Loading").assertIsDisplayed()
 }
 ```
 
-Use `semantics` / `testTag` in production Composables to avoid brittle text-based selectors.
+Selector priority (top of list wins):
+
+1. `onNodeWithText("...")` — visible text the user reads.
+2. `onNodeWithContentDescription("...")` — accessibility label (icons, images).
+3. Role / state matchers — `hasClickAction()`, `isSelected()`, `isFocused()`, `isEnabled()`.
+4. `onNodeWithTag("...")` — **only when** there's no stable user-visible text or the text is duplicated/ambiguous (lists of identical rows, dynamic copy that changes per locale, multiple instances of the same component).
+
+Test what the user perceives, not implementation details. A test that asserts text the user sees survives refactors that move components around; a test that asserts `onNodeWithTag("loading_indicator")` breaks the moment the tag changes — and doesn't catch the user-facing regression where the spinner is wired wrong.
+
+### Callbacks as test surfaces
+
+Test that a click fires the expected callback — don't route the assertion through a ViewModel mock.
+
+```kotlin
+@Test
+fun `tapping article row invokes onArticleClick with article id`() {
+    var clickedId: String? = null
+    val article = Article(id = "42", title = "Hello")
+
+    composeTestRule.setContent {
+        ArticleRow(article = article, onArticleClick = { clickedId = it })
+    }
+
+    composeTestRule.onNodeWithText("Hello").performClick()
+    assertEquals("42", clickedId)
+}
+```
+
+The composable's contract is "render state, emit callbacks." Test exactly that.
+
+### Choosing the Test Shape
+
+**Test the smallest UI contract that proves the behavior.**
+
+A plain UI Compose test (`createComposeRule()` + state + callbacks) is enough for most behaviour. Reach for an integration test, screenshot test, or key-input test only when that shape is the one being proven.
+
+| Thing being proven | Test shape |
+|---|---|
+| Text rendered, conditional content visible, loading/error branches, callback wiring from clicks | Plain UI Compose test (state + callbacks, no graph) |
+| Focus navigation, keyboard, TV/D-pad behavior | Compose test with key input — drive with `performKeyInput`, assert with `assertIsFocused()`. See `compose/references/focus-navigation.md` |
+| Visual contract semantics can't prove: spacing, themed colors, typography, elevation, gradients, focus highlight, skeleton loaders | Screenshot test, one per meaningful state |
+| State holder updates UI correctly | State-holder unit test + ONE wiring smoke test (two tests, not one big integration) |
+| Lifecycle, navigation, or DI integration itself under test | Integration test (`createAndroidComposeRule`, Hilt rule, real graph) |
+
+**Screenshot determinism rules:**
+
+- Fixed state data — no current time, no random seeds, no remote URLs in the screenshot path
+- Freeze clocks (`Clock.fixed(...)`) and animation progress (disable animations or set fixed progress)
+- Fake image loaders for image-heavy screens — use Coil's `setContentWithFakeImageLoader { ... }` (see `android-skills:coil-compose`)
+- One screenshot per meaningful state (loading/error/success/empty), not one per UI element
+
+**Fake image loader pattern:**
+
+```kotlin
+@Test
+fun `article row renders with fake image`() {
+    composeTestRule.setContent {
+        AppTheme {
+            val imageLoader = FakeImageLoader(LocalContext.current) // Coil 3 test util
+            CompositionLocalProvider(LocalImageLoader provides imageLoader) {
+                ArticleRow(article = previewArticle(), onClick = {})
+            }
+        }
+    }
+    composeTestRule.onRoot().captureRoboImage()
+}
+```
 
 ## Hilt Testing
 
@@ -289,5 +359,11 @@ class LoginViewModelTest {
 - Using `Thread.sleep()` in any test
 - Using `runBlocking` instead of `runTest`
 - Mocking data classes or simple value types
-- No `testTag` on interactive/key UI components
+- `onNodeWithTag` used as the first reach when stable user-visible text or `contentDescription` exists
+- `testTag` sprinkled across every interactive component "for testability" — semantics first
+- Test asserts that a node *exists* after an action, instead of asserting the action's callback fired
+- Click-only test for UI that ships on TV, ChromeOS, or keyboard-first Android (drive with key input instead — see `compose/references/focus-navigation.md`)
+- Screenshot test asserts focus ownership instead of using `assertIsFocused()` — see `compose/references/focus-navigation.md`
+- Screenshot test contains current time, random IDs, or remote image URLs
+- Integration test used when a plain UI test would prove the same behavior
 - Instrumented tests for logic that could run on JVM

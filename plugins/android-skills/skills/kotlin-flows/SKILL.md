@@ -27,12 +27,31 @@ During the context check, also identify Channel usage:
 |---|---|
 | `BroadcastChannel` | Always migrate → `SharedFlow` (deprecated) |
 | `ConflatedBroadcastChannel` | Always migrate → `StateFlow` (deprecated) |
-| `Channel` used as event bus | Ask user (see trade-offs below), then migrate → `SharedFlow` or keep as `Channel` |
+| `Channel` used as single-consumer fire-once events (nav commands, snackbars, one-shot side effects) | **Keep — correct use case.** This is what Channel is for. |
+| `Channel` used as broadcast to multiple collectors | Migrate → `SharedFlow`. `Channel.receiveAsFlow()` is fan-out, not broadcast — each event reaches one collector, not all. |
 | `Channel` as producer-consumer queue | Keep — correct use case |
 
-**Always prompt the user before migrating any Channel:**
+**Default for single-consumer fire-once events: `Channel(Channel.BUFFERED).receiveAsFlow()`.**
 
-> "This `Channel` is used as an event bus. `SharedFlow` is the idiomatic replacement and integrates cleanly with lifecycle-safe collection. However, `Channel` guarantees that every emission is consumed exactly once — `SharedFlow` does not (emissions are missed if no collector is active). Do you need exactly-once delivery, or is `SharedFlow` acceptable here?"
+```kotlin
+private val _events = Channel<UiEvent>(Channel.BUFFERED)
+val events: Flow<UiEvent> = _events.receiveAsFlow()
+
+fun onItemClick(id: String) {
+    viewModelScope.launch {
+        _events.send(UiEvent.NavigateToDetail(id))
+    }
+}
+```
+
+Navigation commands, snackbar prompts, and one-shot effects must not be missed when the UI is briefly inactive (rotation, modal stacking, background). `Channel` suspends `send` until a receiver consumes, so the event is queued — never silently dropped. `SharedFlow(replay = 0)` drops the emission if no collector is active at the exact moment of emission.
+
+**Use `SharedFlow` only when:**
+- Multiple collectors must receive the same event simultaneously (e.g. logging + analytics + UI), or
+- Missing events under load is genuinely acceptable (tooltips, sound effects, non-critical UI cues), and
+- You're willing to choose between `replay = 0` (collectors miss past events) and `replay > 0` (collectors get the last N — but then it's caching, not pure broadcast).
+
+**Critical semantic note:** `Channel.receiveAsFlow()` is **fan-out**, not broadcast. With multiple collectors, each event is delivered to **one** collector — the framework picks which. If you need every collector to see every event, you need `SharedFlow`, not `Channel`.
 
 ## Choosing the Right Type
 
@@ -40,10 +59,12 @@ During the context check, also identify Channel usage:
 |---|---|---|---|
 | `Flow` | Cold | No | One-off streams, repository data |
 | `StateFlow` | Hot | Yes (last value) | UI state |
-| `SharedFlow` | Hot | Configurable | Events, broadcasts |
+| `Channel(BUFFERED).receiveAsFlow()` | Hot | No (queued until consumed) | **Single-consumer fire-once events: nav, snackbars, one-shot effects** |
+| `SharedFlow` | Hot | Configurable | Multi-collector broadcast where missed events are acceptable |
 
 - Representing current state that new collectors need immediately? → `StateFlow`
-- Broadcasting events to multiple collectors? → `SharedFlow`
+- Single-consumer fire-once event that must not be missed? → `Channel(BUFFERED).receiveAsFlow()`
+- Broadcasting to multiple collectors? → `SharedFlow`
 - Simple data stream from one source? → `Flow`
 
 ## Creating Flows
@@ -225,6 +246,47 @@ class NewsViewModel : ViewModel() {
 }
 ```
 
+**The `update { }` lambda can be retried on contention.** `MutableStateFlow.update` re-executes the lambda if a concurrent update lost a CAS race. Don't put expensive work or side effects inside it — only the state transform. Build the new value before the call.
+
+```kotlin
+// WRONG — analytics fires twice on contention
+_state.update { current ->
+    analytics.logStateChange(current)  // re-runs on retry
+    current.copy(isLoading = true)
+}
+
+// RIGHT — build/observe outside, transform inside
+val current = _state.value
+analytics.logStateChange(current)
+_state.update { it.copy(isLoading = true) }
+```
+
+### Sentinel Anti-Pattern in StateFlow
+
+**Never invent sentinel domain values for `StateFlow` initial state.** Things like `User.NoUser`, `Items.Empty`, or placeholder IDs force every consumer to handle the fake value as if it were real. The `StateFlow` initial-value requirement isn't a license to invent sentinels.
+
+Two correct alternatives:
+
+**Phase the StateFlow** — expose it only when the real value exists:
+```kotlin
+// WRONG — sentinel forces every consumer to check
+private val _user = MutableStateFlow(User.NoUser)
+val user: StateFlow<User> = _user
+
+// RIGHT — phase: don't expose the flow until the real value exists
+private var _user: MutableStateFlow<User>? = null
+val user: StateFlow<User> get() = checkNotNull(_user) { "User not loaded yet" }
+
+fun loadUser(id: String) {
+    viewModelScope.launch {
+        val loaded = repository.getUser(id)
+        _user = MutableStateFlow(loaded)
+    }
+}
+```
+
+**Model loaded/unloaded explicitly** with a sealed `UiState` (Loading / Success / Error) — that's a domain decision, not a sentinel.
+
 **`stateIn` vs `MutableStateFlow` — when to use which:**
 - **`stateIn`** — when a repository or data layer exposes a cold `Flow` and the ViewModel wants to expose it as a `StateFlow`. The flow drives the state; the ViewModel doesn't write to it directly.
 - **`MutableStateFlow`** — when the ViewModel drives state imperatively: loading results, reacting to user actions, combining multiple sources. The ViewModel owns and writes to the state.
@@ -233,6 +295,34 @@ class NewsViewModel : ViewModel() {
 - `SharingStarted.WhileSubscribed(5_000)` — stops when no collectors, survives config changes; use in ViewModels
 - `SharingStarted.Eagerly` — starts immediately, never stops
 - `SharingStarted.Lazily` — starts on first collector, never stops
+
+**Calling `stateIn(scope, ...)` inside a function launches a fresh shared coroutine on every call.** Each invocation creates a new `StateFlow` with its own collector on `scope`, none of which complete. Performance degrades fast under repeated reads.
+
+```kotlin
+// WRONG — fresh stateIn per call
+class Repository(private val scope: CoroutineScope) {
+    fun getPreferences(): StateFlow<Preferences> = preferencesDataSource.flow
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), Preferences.Default)
+}
+
+// RIGHT — stateIn at property declaration; one shared flow per instance
+class Repository(scope: CoroutineScope) {
+    val preferences: StateFlow<Preferences> = preferencesDataSource.flow
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), Preferences.Default)
+}
+```
+
+**Operators on a `StateFlow` return `Flow`, not `StateFlow`.** `userState.map { it.name }` is a `Flow<String>` — no `.value`, no replay-on-collect, no initial value. Re-terminate with `.stateIn(...)` if you need state semantics:
+
+```kotlin
+// WRONG — .value access fails
+val userName: Flow<String> = userState.map { it.name }
+
+// RIGHT — re-terminate as StateFlow with derived initial value
+val userName: StateFlow<String> = userState
+    .map { it.name }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), userState.value.name)
+```
 
 ## SharedFlow Patterns
 
@@ -279,12 +369,29 @@ fun onItemClick(id: String) {
 - `extraBufferCapacity` — buffer emissions when collectors are slow
 - `onBufferOverflow = DROP_OLDEST` — drop oldest buffered value when full
 
-**One-shot UI events — ask the user:**
+**One-shot UI events — implementing the `Channel` default:**
 
-> "Do you need guaranteed exactly-once delivery (the event must never be missed even if the UI is temporarily inactive), or is it acceptable to miss an event if no collector is subscribed at that moment?"
+**Step 2: Channel Audit** (above) covers *why* `Channel(Channel.BUFFERED).receiveAsFlow()` is the default for single-consumer fire-once events — exactly-once delivery, and `SharedFlow(replay = 0)` drops events when no collector is active. The implementation specifics:
 
-- **Can miss events when UI is inactive** → `SharedFlow(replay = 0)` — simpler, no backpressure risk. Collect with `collect` inside a `LaunchedEffect`, never with `collectAsStateWithLifecycle` (which preserves the last emission as state, causing events to be re-consumed on recomposition). Be aware that `repeatOnLifecycle` stops collection when the lifecycle drops below the target state (configurable, default `STARTED`) — emissions during that window are lost. Use when that trade-off is acceptable (e.g. non-critical UI effects like tooltips or sounds)
-- **Must never miss an event** → `Channel` — guarantees exactly-once delivery; `send()` suspends or buffers until a receiver consumes the value. Suited for navigation commands or one-time side effects where a missed event would be a visible bug
+```kotlin
+// DEFAULT — Channel for single-consumer fire-once events
+private val _events = Channel<UiEvent>(Channel.BUFFERED)
+val events: Flow<UiEvent> = _events.receiveAsFlow()
+
+// Collect once inside a LaunchedEffect — Flow exposed externally, not Channel
+LaunchedEffect(Unit) {
+    viewModel.events.collect { event ->
+        when (event) {
+            is UiEvent.Navigate -> onNavigate(event.route)
+            is UiEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
+        }
+    }
+}
+```
+
+- **Collect with `collect` inside `LaunchedEffect` — never `collectAsStateWithLifecycle`.** The latter preserves the last emission as state, re-consuming the event on every recomposition or configuration change.
+- **Don't expose the `Channel` itself.** Expose `Flow` via `receiveAsFlow()` so callers can't `send`, `close`, or `tryReceive`.
+- **If you do use `SharedFlow(replay = 0)`** for the multi-collector or miss-tolerable cases (see Step 2), note `repeatOnLifecycle` stops collection below `STARTED`, so emissions during pause are lost.
 
 ## Lifecycle-Safe Collection (Android)
 
@@ -331,6 +438,10 @@ lifecycleScope.launch {
 | Collecting a flow with `.firstOrNull()` / `.first()` inside a `map` or `combine` lambda | Hidden sequential call that re-fetches on every upstream emission — use `combine` to merge both flows reactively |
 | Manual `Job?` cancellation + re-launch to restart a collection on new upstream value | Use `flatMapLatest` — it cancels the previous inner collection automatically when the upstream emits |
 | `mutableStateFlow.emit(value)` inside a coroutine | `emit()` on `MutableStateFlow` is suspending but equivalent to `.value = value` — use `.value =` instead; `emit()` misleads readers and adds unnecessary suspension |
+| Sentinel domain values (`NoUser`, `EmptyUser`) as `StateFlow` initial state | Phase the flow or model loaded state explicitly; sentinels force every consumer to check |
+| `update { }` lambda contains side effects or expensive work | Lambda can be retried on CAS contention; build value outside, transform inside |
+| `stateIn(scope, ...)` inside a function | Every call launches a fresh shared coroutine; move `stateIn` to property declaration |
+| `.map` on `StateFlow` returns `Flow`, not `StateFlow` | Re-terminate with `.stateIn(...)` to preserve state semantics |
 
 ## RIGHT vs WRONG Patterns
 
