@@ -386,39 +386,12 @@ fun ShareButton(text: String) {
     }) { Text("Share") }
 }
 
-// Good: common interface with Activity-owned Android binding
-// commonMain
-interface ShareSheet {
-    /**
-     * Launches the system share sheet. Returns when the sheet is presented —
-     * NOT when the user completes or cancels the share.
-     */
-    suspend fun shareText(text: String)
-}
-
-// androidMain — Activity-owned, no FLAG_ACTIVITY_NEW_TASK lifecycle hack
-class AndroidShareSheet(private val activity: Activity) : ShareSheet {
-    override suspend fun shareText(text: String) {
-        val intent = Intent(Intent.ACTION_SEND)
-            .setType("text/plain")
-            .putExtra(Intent.EXTRA_TEXT, text)
-        activity.startActivity(Intent.createChooser(intent, null))
-    }
-}
-
-// iosMain
-class IosShareSheet : ShareSheet {
-    override suspend fun shareText(text: String) {
-        val controller = UIActivityViewController(activityItems = listOf(text), applicationActivities = null)
-        UIApplication.sharedApplication.keyWindow?.rootViewController
-            ?.presentViewController(controller, animated = true, completion = null)
-    }
-}
+// Good: a commonMain `interface ShareSheet { suspend fun shareText(text: String) }`,
+// with an Android binding that is Activity-owned (NOT applicationContext) and an iOS
+// binding over UIActivityViewController.
 ```
 
-**Why `applicationContext + FLAG_ACTIVITY_NEW_TASK` is wrong:** the share sheet is a UI operation and needs a foreground Activity. `applicationContext.startActivity(...)` requires `FLAG_ACTIVITY_NEW_TASK` because the Application has no current task — and that flag papers over the missing lifecycle ownership. The Activity-owned binding makes the requirement explicit and gives you somewhere to add result handling later if needed.
-
-**Why an interface, not `expect fun`:** an `expect fun` can't be faked in common tests without a real platform runtime, and a free function can't hold an `Activity` reference. An interface bound in the platform DI layer holds the lifecycle owner explicitly and is trivially fakeable. See `android-skills:kmp-boundaries` for the broader rule.
+Two traps, both detailed in `android-skills:kmp-boundaries`: don't use `applicationContext + FLAG_ACTIVITY_NEW_TASK` (a share sheet is a UI op needing a foreground `Activity`; the flag papers over missing lifecycle ownership), and prefer a common interface over `expect fun` (an `expect fun` can't be faked in common tests and can't hold an `Activity`). That skill carries the full Android/iOS bindings and how the `Activity` reaches the constructor.
 
 **2. Compose Compiler 2.0.0 incorrect stability inference on non-JVM targets**
 
