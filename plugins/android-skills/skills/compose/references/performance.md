@@ -64,7 +64,7 @@ With Kotlin 2.0.20+ and strong skipping on by default, the legacy "missing skipp
 When the report shows a composable as skippable but Layout Inspector shows it recomposing constantly, look at the **call site** — a caller probably allocates a new unstable instance every frame (`listOf(...)`, `Modifier.X.Y()`, an ad-hoc data class). Fixing instability turns `===` comparisons back into `equals()`:
 
 - **Unstable collection types** (`List`, `Set`, `Map`) — replace with `kotlinx.collections.immutable` equivalents (`ImmutableList`, …) so equality is meaningful.
-- **All properties stable but the class isn't annotated** — add `@Stable`/`@Immutable` (only if the contract genuinely holds — a false promise causes skipped recompositions and stale UI).
+- **All properties stable but the class isn't annotated** — same-module classes with all-stable properties are inferred stable automatically, so usually no action is needed; annotate `@Stable`/`@Immutable` only when inference can't see the type — and only if the contract genuinely holds, since a false promise causes skipped recompositions and stale UI. Don't annotate speculatively.
 - **Inner types are themselves unstable** — fix the inner types first; the outer type then becomes stable. Can cascade several levels.
 - **Cross-module boundary** — the compiler can't infer across modules; use `stabilityConfigurationFiles` (below).
 - **Pragmatic opt-out** — `@Suppress("ComposeUnstableCollections")` per-function when the instability is harmless and refactoring isn't justified.
@@ -82,7 +82,7 @@ class UserViewModel : ViewModel {
 ```
 
 - **`@Immutable`** — every property is effectively immutable and `equals()` describes all observable state. The compiler skips whenever previous and current values are `equals`-equal. The stricter promise; lets it skip more aggressively.
-- **`@Stable`** — for types whose mutable state is observable to Compose (typically via `MutableState`). You promise *any* observable change is flagged through a snapshot, so the compiler can compare by identity and stay correct. Right for ViewModels and snapshot-backed holders.
+- **`@Stable`** — for types whose mutable state is observable to Compose (typically via `MutableState`). You promise *any* observable change is flagged through a snapshot. Like every stable type it's compared with `equals()` (see *Strong Skipping Mode*); a holder that doesn't override `equals()` falls back to identity, so passing the same instance skips while observed snapshot changes still recompose. Right for ViewModels and snapshot-backed holders.
 
 **Don't annotate to silence a report.** A false stability promise produces *skipped recompositions and stale UI* — silent and hard to reproduce. If the contract doesn't hold, fix the type or live with the recomposition. (Never `@Stable` on a data class with mutable non-snapshot fields.)
 

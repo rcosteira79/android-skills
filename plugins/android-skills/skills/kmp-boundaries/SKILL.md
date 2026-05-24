@@ -94,6 +94,19 @@ class AndroidShareSheet(private val activity: Activity) : ShareSheet {
 
 The Android `ShareSheet` is explicitly `Activity`-owned. A generic `Context` would need `Intent.FLAG_ACTIVITY_NEW_TASK` to launch the chooser — and that flag is a smell: it hides the fact that this is a UI operation requiring a foreground task. The right design is "the platform binding holds an `Activity`," not "the actual silently launches into whatever task the OS picks." This is the single most common Android boundary mistake: passing `applicationContext` (or `LocalContext.current`) into a class that actually needs an Activity, then papering over the lifecycle gap with `FLAG_ACTIVITY_NEW_TASK`.
 
+**How the Activity reaches the constructor.** You don't app-wide-inject an `Activity` — it's framework-created and lifecycle-bound. Construct the binding in an **activity scope** in the Android app module, where the current Activity is available:
+
+```kotlin
+// androidApp — Hilt, activity-scoped (Activity is a default binding in ActivityComponent)
+@Module
+@InstallIn(ActivityComponent::class)
+object ShareModule {
+    @Provides fun shareSheet(activity: Activity): ShareSheet = AndroidShareSheet(activity)
+}
+```
+
+Koin's equivalent is an activity-scoped definition (`scope` / `scoped`). `commonMain` only ever sees the `ShareSheet` interface — the `Activity` never leaves the app module. If a longer-lived (app-scoped) object needs the binding, don't capture the Activity directly; hold it behind a lifecycle-aware provider (set in `onResume`, cleared in `onPause`) so a destroyed Activity can't leak.
+
 ### Define what `suspend` means
 
 For platform UI actions, "the function returned" usually means **the action was launched**, not **the user completed it**. Document this in the interface KDoc; otherwise callers will write incorrect retry/confirmation logic.
