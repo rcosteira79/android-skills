@@ -84,7 +84,13 @@ fun `given invalid credentials, when logging in, then emits error state`() = run
 }
 ```
 
-For `StateFlow` / `SharedFlow` collection, use [Turbine](https://github.com/cashapp/turbine):
+**Hot flows (`StateFlow` / `SharedFlow`) never complete**, so collecting one directly on the `TestScope` hangs to the 60-second `runTest` timeout:
+
+```kotlin
+viewModel.uiState.collect { seen += it } // WRONG: hangs the test
+```
+
+Use [Turbine](https://github.com/cashapp/turbine)'s `test {}`, which collects and cancels for you:
 
 ```kotlin
 viewModel.uiState.test {
@@ -92,6 +98,12 @@ viewModel.uiState.test {
     assertIs<LoginUiState.Error>(awaitItem())
     cancelAndIgnoreRemainingEvents()
 }
+```
+
+Or, without Turbine, launch the collector on `backgroundScope` (auto-cancelled at end of test):
+
+```kotlin
+viewModel.uiState.onEach { seen += it }.launchIn(backgroundScope)
 ```
 
 Dispatcher injection is required for testability:
@@ -103,11 +115,42 @@ class LoginViewModel(
 ) : ViewModel()
 ```
 
-In tests, inject `UnconfinedTestDispatcher` or `StandardTestDispatcher` from `kotlinx-coroutines-test`.
+Replace `Dispatchers.Main` in tests via the canonical `MainDispatcherRule` from androidx `testutils-ktx`:
+
+```kotlin
+@OptIn(ExperimentalCoroutinesApi::class)
+class MainDispatcherRule(
+    val dispatcher: TestDispatcher = StandardTestDispatcher(),
+) : TestWatcher() {
+    override fun starting(description: Description?) {
+        super.starting(description); Dispatchers.setMain(dispatcher)
+    }
+    override fun finished(description: Description?) {
+        super.finished(description); Dispatchers.resetMain()
+    }
+}
+
+class LoginViewModelTest {
+    @get:Rule val mainRule = MainDispatcherRule()
+
+    @Test fun loadsItems() = runTest(mainRule.dispatcher) {
+        val vm = LoginViewModel(fakeRepo, mainRule.dispatcher)
+        vm.login(/* … */)
+        advanceUntilIdle()
+        assertIs<LoginUiState.Success>(vm.uiState.value)
+    }
+}
+```
+
+**Two-schedulers trap.** `MainDispatcherRule`'s dispatcher and the default dispatcher `runTest { }` creates have separate `TestCoroutineScheduler`s. Pass `mainRule.dispatcher` into `runTest(...)` so `Dispatchers.Main` and the test body share one scheduler — otherwise `advanceUntilIdle()` only flushes one of them and assertions race the ViewModel.
+
+Prefer `StandardTestDispatcher` over `UnconfinedTestDispatcher` — it queues continuations (matching `runTest` semantics). Reach for `UnconfinedTestDispatcher` only when hot-flow collector eagerness is genuinely the point.
 
 ## Compose UI Testing
 
 Use `createComposeRule()` for component tests, `createAndroidComposeRule()` for integration tests needing Activity.
+
+**Prefer v2 entry points for new code.** Import from `androidx.compose.ui.test.junit4.v2.createComposeRule` (or `androidx.compose.ui.test.v2.runComposeUiTest`) — they use `StandardTestDispatcher` and match `kotlinx.coroutines.test.runTest` semantics. The v1 imports (`androidx.compose.ui.test.junit4.createComposeRule`, `androidx.compose.ui.test.runComposeUiTest`) use `UnconfinedTestDispatcher` and are deprecated `WARNING`. After migrating, a `LaunchedEffect` that previously ran eagerly may need an explicit `mainClock.advanceTimeBy(0)` or `runCurrent()` to drain queued work.
 
 ### Semantics first, `testTag` as fallback
 
@@ -141,6 +184,8 @@ Selector priority (top of list wins):
 
 Test what the user perceives, not implementation details. A test that asserts text the user sees survives refactors that move components around; a test that asserts `onNodeWithTag("loading_indicator")` breaks the moment the tag changes — and doesn't catch the user-facing regression where the spinner is wired wrong.
 
+**Counterargument worth knowing.** [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills) argues for tag-first finders backed by androidx/material3's own ratios (1825 `onNodeWithTag` vs 424 `onNodeWithText` vs 46 `onNodeWithContentDescription`) — the tag-first stance is more robust to i18n rotation and copy edits. We still recommend semantics-first because text/`contentDescription` assertions exercise accessibility and catch a class of bugs `testTag` can never see — but if your app has separate accessibility coverage and prioritises i18n robustness, the tag-first stance is defensible.
+
 ### Callbacks as test surfaces
 
 Test that a click fires the expected callback — don't route the assertion through a ViewModel mock.
@@ -161,6 +206,18 @@ fun `tapping article row invokes onArticleClick with article id`() {
 ```
 
 The composable's contract is "render state, emit callbacks." Test exactly that.
+
+### Synchronisation: test clock vs wall clock
+
+| API | Source | When |
+|---|---|---|
+| `mainClock.advanceTimeUntil(timeoutMillis) { condition }` | Test clock — advances frame-by-frame | Compose-state-observable conditions (`state.value == Done`); deterministic, fast |
+| `rule.waitUntil(timeoutMillis) { condition }` | Wall clock + 10 ms sleep per iteration | Non-Compose conditions (`Job.isCompleted`, an external counter) |
+| `rule.waitUntilExactlyOneExists(matcher, timeoutMillis)` (experimental) | Wall clock | "Wait until exactly one node matches"; cleaner than hand-rolling `waitUntil` over `fetchSemanticsNodes()` |
+
+Mixing wall-clock and test-clock waits in the same test is a common flake source. For any condition observable through Compose state, `mainClock.advanceTimeUntil` is correct.
+
+**Animation tests require `mainClock.autoAdvance = false`** set **before** `setContent`. Otherwise the framework's `InfiniteAnimationPolicy` throws `CancellationException` on indeterminate animations, and finite animations finish in one auto-advanced burst with no observable intermediate state. After pausing the clock, drive frames with `advanceTimeByFrame()` (kick-off) then `advanceTimeBy(durationMillis)`.
 
 ### Choosing the Test Shape
 
