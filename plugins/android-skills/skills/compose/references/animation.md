@@ -1527,6 +1527,8 @@ val anim by animateFloatAsState(
 
 **Navigation Compose already animates between destinations** (`NavHost.enterTransition` / `exitTransition` / `popEnterTransition` / `popExitTransition`). Wrapping the destination's content in `AnimatedContent` produces double-animations — the destination swaps, then the new content cross-fades on top of the swap.
 
+The same holds for **Navigation 3**: `NavDisplay` owns its destination transitions, so don't wrap a Nav3 destination's whole content in `AnimatedContent` either. See `references/navigation.md`.
+
 ```kotlin
 // WRONG — double-animate
 NavHost(navController, startDestination = "list") {

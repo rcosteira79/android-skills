@@ -2,6 +2,8 @@
 
 Reference: `androidx/navigation/navigation-compose/src/commonMain/kotlin/androidx/navigation/compose/`
 
+> **Navigation 3 (`androidx.navigation3`) is the default for new work** — see the **Navigation 3** section at the end. The `NavHost` / `NavController` content below is **Navigation 2**, now legacy/interop.
+
 ## Setup
 
 ### Basic NavHost and NavController
@@ -414,3 +416,19 @@ navigation<FeatureRoot>(startDestination = FeatureHome()) {
     composable<FeatureDetails> { }
 }
 ```
+
+---
+
+## Navigation 3 (`androidx.navigation3`)
+
+**Default to Navigation 3 for new work — Nav3 all the way unless impossible.** It's a separate, Compose-first library: you own the back stack as observable state and a `NavDisplay` renders it via an `entryProvider` (no `NavController`, no graph builder). It's the direction Jetpack navigation is heading, so the Navigation 2 content above is legacy/interop — reach for Nav2 only when Nav3 genuinely can't do the job, or when bending a case into Nav3 would be far more complex than the Nav2 equivalent.
+
+There's deliberately no Nav3 API mirrored here: Google maintains an official, current `navigation-3` skill, and duplicating it would only drift.
+
+- **Preferred — the installed skill.** Google ships an installable `navigation-3` skill for Claude Code (also Cursor/Copilot). If it's present (check `android skills list`, or `~/.claude/skills/navigation-3/`), invoke it — it's the authoritative, maintained source. Install with `android skills add navigation-3`.
+- **Fallback — the KB.** Without it installed, fetch the same content: `android docs fetch kb://android/agents/skills/navigation/navigation-3/skill` (overview at `.../navigation-3/index`).
+- **Recipes** (basic, animations, deep links, multiple back stacks, list-detail, DI): `github.com/android/nav3-recipes`.
+
+The recipes are building blocks, not drop-in solutions — compose what your use case needs from them, without over-engineering something Nav2 would do trivially.
+
+**Carry-over from this skill:** `NavDisplay` owns its transitions (`transitionSpec` / `popTransitionSpec` / `predictivePopTransitionSpec`), so don't wrap a destination's content in `AnimatedContent` — same double-animation trap as Nav2 (see `references/animation.md`).

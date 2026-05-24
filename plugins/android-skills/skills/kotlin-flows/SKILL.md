@@ -369,9 +369,9 @@ fun onItemClick(id: String) {
 - `extraBufferCapacity` — buffer emissions when collectors are slow
 - `onBufferOverflow = DROP_OLDEST` — drop oldest buffered value when full
 
-**One-shot UI events — default to `Channel`, not `SharedFlow`:**
+**One-shot UI events — implementing the `Channel` default:**
 
-For single-consumer fire-once events, `Channel(Channel.BUFFERED).receiveAsFlow()` is the right default. It guarantees exactly-once delivery: `send()` suspends or buffers until a receiver consumes the value, so navigation commands, dialog triggers, and one-shot side effects survive momentary UI inactivity (rotation, modal stacking, lifecycle pause).
+**Step 2: Channel Audit** (above) covers *why* `Channel(Channel.BUFFERED).receiveAsFlow()` is the default for single-consumer fire-once events — exactly-once delivery, and `SharedFlow(replay = 0)` drops events when no collector is active. The implementation specifics:
 
 ```kotlin
 // DEFAULT — Channel for single-consumer fire-once events
@@ -389,15 +389,9 @@ LaunchedEffect(Unit) {
 }
 ```
 
-**Reach for `SharedFlow(replay = 0)` only when:**
-- Multiple collectors must receive each event simultaneously (UI + analytics + logging), **or**
-- The event is non-critical and a miss under inactivity is genuinely acceptable (tooltips, sound effects).
-
-`SharedFlow(replay = 0)` drops emissions silently when no collector is active. `repeatOnLifecycle` stops collection below the target state (default `STARTED`), so emissions during pause are lost. For navigation, dialogs, or any "visible bug if missed" event — that's the wrong default.
-
-**Critical rule for both:** collect events with `collect` inside `LaunchedEffect`. **Never with `collectAsStateWithLifecycle`** — it preserves the last emission as state, causing the event to be re-consumed on every recomposition or configuration change.
-
-**Don't expose the Channel itself.** Always expose `Flow` (via `receiveAsFlow()`) externally — callers should not be able to call `send`, `close`, or `tryReceive` from outside.
+- **Collect with `collect` inside `LaunchedEffect` — never `collectAsStateWithLifecycle`.** The latter preserves the last emission as state, re-consuming the event on every recomposition or configuration change.
+- **Don't expose the `Channel` itself.** Expose `Flow` via `receiveAsFlow()` so callers can't `send`, `close`, or `tryReceive`.
+- **If you do use `SharedFlow(replay = 0)`** for the multi-collector or miss-tolerable cases (see Step 2), note `repeatOnLifecycle` stops collection below `STARTED`, so emissions during pause are lost.
 
 ## Lifecycle-Safe Collection (Android)
 

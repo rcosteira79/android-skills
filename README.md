@@ -72,12 +72,12 @@ Senior Android engineering knowledge and best practices for Android and KMP proj
 ### `android-tdd`
 Test-driven development for Android/KMP — extends TDD with Android's three-tier test model, fake-first strategy, coroutine testing, Compose UI testing, and Roborazzi screenshot testing.
 
-> Test-shape decision framework, semantics-first selector rules, and screenshot determinism patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills)
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `android-ux`
 Material Design 3 UX principles for Android — touch targets (48×48dp), 8dp spacing grid, navigation patterns (Bottom Bar, Rail, Drawer), canonical layouts (Feed, List-Detail, Supporting Pane), foldable postures (tabletop, book mode), M3 contrast levels, safe area handling, accessibility, animation timing, keyboard input types, and an M3 compliance audit that scores screens across 10 categories.
 
-> M3 contrast levels, canonical layouts, and foldable posture patterns inspired by [material-3-skill](https://github.com/hamen/material-3-skill)
+> Inspired by [material-3-skill](https://github.com/hamen/material-3-skill)
 
 ### `android-debugging`
 Debugging Android and KMP issues — Logcat, ADB, ANR traces, R8 stack trace decoding, memory leaks, Gradle build failures, and Compose recomposition bugs.
@@ -92,19 +92,19 @@ Dispatcher selection, scope management, structured concurrency, cancellation, ex
 
 > Incorporates material from [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
 
-> Scope-ownership thesis (caller owns the scope; `suspend fun` over stored `CoroutineScope`) and the DI-singleton / `Initializer.initialize()` anti-pattern from [chrisbanes/skills](https://github.com/chrisbanes/skills)
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `kotlin-flows`
 Flow type selection (`Flow`/`StateFlow`/`SharedFlow`), operator chains, callback bridging, lifecycle-safe collection, Channel migration, and UI state management.
 
-> Sentinel anti-pattern, `update {}` retry caveat, `Channel(BUFFERED)` default for single-consumer fire-once events, `stateIn`-inside-a-function trap, and the `.map`-on-StateFlow rule from [chrisbanes/skills](https://github.com/chrisbanes/skills)
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `compose`
 Jetpack Compose expert guidance — state management (`@Composable`, `remember`, `mutableStateOf`, `derivedStateOf`, state hoisting), Modifier chains, lazy lists, navigation, animation, side effects, theming, accessibility, performance optimization, and focus/key-event navigation (`FocusRequester`, `focusable`, `focusProperties`, D-pad/TV/ChromeOS, lazy-list focus restoration, dialog focus traps, predictive-back, and testing with `performKeyInput` + `assertIsFocused`).
 
-> Forked from [compose-skill](https://github.com/aldefy/compose-skill). The reference docs share the same foundation, but this version replaces the bundled static AndroidX source snapshots with live source verification via [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp) (preferred) or the `android-source-search` skill — always up to date, zero context overhead.
+> Forked from [compose-skill](https://github.com/aldefy/compose-skill) — reference docs rebased on live source verification instead of the upstream's bundled AndroidX snapshots.
 
-> Authoring rules across state, side effects, modifiers, slots, performance (strong-skipping reframe, `stabilityConfigurationFiles`, provider-lambda deferral), animation (`rememberTransition`, `AnimatedContent` `contentKey`), and the full `focus-navigation` reference incorporate patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills)
+> Incorporates patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `rxjava-migration`
 Triggered only when you explicitly ask to migrate. Assesses complexity, maps RxJava types and operators to coroutines equivalents, and provides interop patterns for incremental migration.
@@ -124,7 +124,7 @@ Ktor client setup for KMP and Android — per-platform engine selection (OkHttp/
 ### `kmp-boundaries`
 Designing Kotlin Multiplatform boundaries — choosing between `expect`/`actual`, common interfaces with platform bindings, or separate platform screens. Covers capability granularity (split by capability, not one `Platform` object), the thin-actuals rule, source-set hierarchies (`skikoMain`, `appleMain`), and Compose Multiplatform leaf positioning.
 
-> Modeled on [chrisbanes/skills](https://github.com/chrisbanes/skills) — adapts and extends his `kotlin-multiplatform-expect-actual` skill
+> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `android-data-layer`
 Data layer implementation — Repository pattern as single source of truth, Room DAOs with `Flow`, offline-first strategies (stale-while-revalidate, outbox pattern), and model mapping between DTO/entity/domain types.

@@ -520,7 +520,6 @@ fun BadModifier() {
 }
 
 // Do: accept a modifier, apply caller's first, then component-internal styling.
-// Placement (size, fillMaxWidth, outer padding) is the caller's call — see Rule 4 above.
 @Composable
 fun GoodModifier(modifier: Modifier = Modifier) {
     Box(

@@ -373,7 +373,7 @@ stringResource(Res.string.greeting)
 
 **1. `LocalContext.current` sprinkled everywhere**
 
-There is no KMP replacement for Android `Context`. Every usage must be audited and abstracted. **Prefer a common interface bound per platform over `expect fun`** — interfaces are fakeable in common tests, and Android UI services like share need an `Activity`, not `applicationContext`.
+There is no KMP replacement for Android `Context`. Every usage must be audited and abstracted.
 
 ```kotlin
 // Bad: Context usage scattered in composables

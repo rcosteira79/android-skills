@@ -5,7 +5,7 @@ description: >
   and Web. Covers state management, composition, animations, navigation, performance,
   design-to-code workflows, and production crash patterns, backed by source analysis from
   androidx/androidx and JetBrains/compose-multiplatform-core. Use whenever the user mentions
-  Compose, @Composable, remember, LaunchedEffect, Scaffold, NavHost, MaterialTheme,
+  Compose, @Composable, remember, LaunchedEffect, Scaffold, NavHost, NavDisplay, MaterialTheme,
   LazyColumn, Modifier, recomposition, Compose Multiplatform/CMP, commonMain, expect/actual,
   ComposeUIViewController, UIKitView, ComposeViewport, Res.drawable/Res.string, or any
   Compose API. Also trigger on phrases like "design to compose", "build this UI",
@@ -47,7 +47,7 @@ Read the relevant reference file(s) from `references/` before answering:
 | `LaunchedEffect`, `DisposableEffect`, `SideEffect`, `rememberCoroutineScope` | `references/side-effects.md` |
 | `CompositionLocal`, `LocalContext`, `LocalDensity`, custom locals | `references/composition-locals.md` |
 | `LazyColumn`, `LazyRow`, `LazyGrid`, `Pager`, keys, content types | `references/lists-scrolling.md` |
-| `NavHost`, type-safe routes, deep links, shared element transitions | `references/navigation.md` |
+| `NavHost`, type-safe routes, deep links, shared element transitions, Navigation 3 (`NavDisplay`, back-stack-as-state) | `references/navigation.md` |
 | `animate*AsState`, `AnimatedVisibility`, `Crossfade`, transitions | `references/animation.md` |
 | `MaterialTheme`, `ColorScheme`, dynamic color, `Typography`, shapes | `references/theming-material3.md` |
 | Touch targets, spacing, canonical layouts, foldables, M3 compliance audit | `android-skills:android-ux` |

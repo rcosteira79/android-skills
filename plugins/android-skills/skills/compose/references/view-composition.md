@@ -207,8 +207,8 @@ fun ListItem(
 ) {
     Row {
         title()
-        Spacer(Modifier.width(8.dp))                // ❌ always there, even when trailing is empty
-        trailing()                                  // emits nothing, but Spacer above still allocates
+        Spacer(Modifier.width(8.dp))                // ❌ unconditional — an empty-lambda default gives no signal to omit it
+        trailing()                                  // emits nothing, but the Spacer above already added 8.dp
     }
 }
 
