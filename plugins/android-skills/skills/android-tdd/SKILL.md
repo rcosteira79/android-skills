@@ -84,7 +84,13 @@ fun `given invalid credentials, when logging in, then emits error state`() = run
 }
 ```
 
-For `StateFlow` / `SharedFlow` collection, use [Turbine](https://github.com/cashapp/turbine):
+**Hot flows (`StateFlow` / `SharedFlow`) never complete**, so collecting one directly on the `TestScope` hangs to the 60-second `runTest` timeout:
+
+```kotlin
+viewModel.uiState.collect { seen += it } // WRONG: hangs the test
+```
+
+Use [Turbine](https://github.com/cashapp/turbine)'s `test {}`, which collects and cancels for you:
 
 ```kotlin
 viewModel.uiState.test {
@@ -94,13 +100,9 @@ viewModel.uiState.test {
 }
 ```
 
-**Never `collect` a hot flow directly on the `TestScope`.** `StateFlow` and `SharedFlow` never complete, so `collect` hangs to the 60-second `runTest` timeout. Launch the collector on `TestScope.backgroundScope` (auto-cancelled at end of test) or use Turbine:
+Or, without Turbine, launch the collector on `backgroundScope` (auto-cancelled at end of test):
 
 ```kotlin
-// WRONG: hangs the test
-viewModel.uiState.collect { seen += it }
-
-// RIGHT: backgroundScope is auto-cancelled at end of test
 viewModel.uiState.onEach { seen += it }.launchIn(backgroundScope)
 ```
 
