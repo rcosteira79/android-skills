@@ -292,6 +292,37 @@ kotlin {
 
 ---
 
+## KMP Library Plugin Constraints (AGP 9)
+
+AGP 9 replaces `com.android.library` with `com.android.kotlin.multiplatform.library` for the Android side of a KMP module, and rejects the `com.android.application` + `kotlin.multiplatform` combination outright. The new plugin enforces a single-variant architecture and removes several Android-library features that previously bled into boundary design.
+
+These constraints are *structural* — they shape what can live in shared code vs. what must move to a platform app module. Knowing them up front saves a class of "this should be easy" mistakes where you design a `commonMain` API around a feature that no longer exists in a KMP library module.
+
+- **`BuildConfig` is unavailable.** Compile-time constants come from [BuildKonfig](https://github.com/yshrsmz/BuildKonfig) / [gradle-buildconfig-plugin](https://github.com/gmazzo/gradle-buildconfig-plugin), or — more often — from DI (`AppConfiguration` interface bound per-platform). Don't design `commonMain` APIs that assume `BuildConfig.X` exists.
+- **No build variants.** Variant-specific dependencies, resources, and signing belong in the app module, not the shared library. A `debug` vs `release` decision can still surface as a runtime configuration value injected into common code — just not as a build-variant split inside the KMP module.
+- **No NDK / JNI.** If common code needs to call into native (C/C++) libraries on Android, extract that into a separate `com.android.library` module and wrap it behind a common interface the KMP module consumes.
+- **Compose Multiplatform resources need explicit enable.** Add `androidResources { enable = true }` inside `kotlin { android { ... } }` or `Res.string.*` / `Res.drawable.*` crash at runtime on Android. Easy to miss — the build succeeds.
+- **Consumer ProGuard rules need explicit migration.** `consumerProguardFiles("rules.pro")` from the old `android {}` block is silently dropped; use `consumerProguardFiles.add(file("rules.pro"))` in the new DSL.
+- **KMP module cannot also be `com.android.application`.** The Android entry point (Activity, Application class, launcher manifest, `applicationId`, `targetSdk`, `versionCode`, `versionName`) must live in a separate `androidApp` module that depends on the shared KMP library. Anything that previously lived in `androidMain` of a `composeApp`-style monolith — `MainActivity`, app-level Hilt setup, navigation host wiring — now belongs in the app module, not the shared library.
+- **kapt is incompatible with built-in Kotlin.** AGP 9 has Kotlin support built into `com.android.application` and `com.android.library`, and `org.jetbrains.kotlin.kapt` no longer applies. Migrate annotation processors to KSP (requires KSP 2.3.1+) or fall back to `com.android.legacy-kapt` for processors with no KSP equivalent.
+
+### Where does this code live?
+
+The "shared library or app module?" decision becomes clear-cut for several categories that used to be ambiguous in monolithic `composeApp` modules:
+
+| Concern | Pre-AGP-9 (monolithic) | AGP 9 KMP library |
+|---|---|---|
+| `MainActivity`, Application class, launcher manifest | `androidMain` of shared module | Separate `androidApp` module |
+| `applicationId`, `versionCode`, `targetSdk` | Shared module's `android {}` | `androidApp` only |
+| Compile-time constants (env, feature flags) | `BuildConfig` field | `BuildKonfig` in common, or runtime DI |
+| Debug vs release variants | `buildTypes {}` in shared module | App module; runtime config in shared |
+| NDK / JNI native code | `androidMain` (any module) | Separate `com.android.library`, wrapped behind a common interface |
+| App-level resources (launcher icon, theme) | Shared module's `androidMain/res` | `androidApp` module |
+
+If you're starting a new KMP project on AGP 9, design with these constraints from day one — they're not migration steps, they're the new shape of a KMP library. If you're migrating an existing project, see JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) skill for the full migration mechanics (Paths A/B/C, DSL migration, plugin compatibility, Gradle property defaults).
+
+---
+
 ## Compose-Specific Boundary Rules
 
 Compose Multiplatform UI built on top of these boundaries follows three additional rules.

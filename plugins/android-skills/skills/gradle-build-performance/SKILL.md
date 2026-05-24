@@ -93,6 +93,8 @@ ksp("androidx.room:room-compiler:2.6.1")
 
 Also replace the `kotlin-kapt` plugin with `com.google.devtools.ksp`.
 
+**AGP 9 makes this mandatory.** AGP 9 has built-in Kotlin support, and `org.jetbrains.kotlin.kapt` is incompatible with it. The path forward is KSP (requires KSP 2.3.1+ on AGP 9) or, for annotation processors with no KSP equivalent, the `com.android.legacy-kapt` plugin (same version as AGP) as a transitional fallback. See JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) skill for the broader AGP 9 migration mechanics.
+
 ### 6. Enable Non-Transitive R Classes
 
 Reduces R class size and recompilation scope (default in AGP 8.0+):
