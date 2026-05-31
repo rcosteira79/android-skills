@@ -1,75 +1,75 @@
 {
   "_comment": "Records the upstream HEAD SHA we last AUDITED for each credited repo. We absorb (rewrite/expand) upstream skills into our roster — we do not fork or mirror them — so this is a drift DETECTOR, not a sync. Run scripts/upstream-drift.sh to see what changed upstream since these SHAs; triage, absorb anything worthwhile via the audit -> absorb -> smoke-test workflow, then run with --update to re-baseline.",
-  "lastRun": "2026-05-23",
+  "lastRun": "2026-06-01",
   "repos": [
     {
       "repo": "chrisbanes/skills",
       "branch": "main",
-      "lastAuditedSha": "4af4fe922a3f889c585449189b77174c85a75422",
-      "auditedOn": "2026-05-23",
+      "lastAuditedSha": "e3cc449d0185fbce8d5587e8d90caf58cd0555e7",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "kmp-boundaries (new), compose/references/focus-navigation (new), android-testing, kotlin-coroutines, kotlin-flows, compose authoring rules"
     },
     {
       "repo": "skydoves/android-testing-skills",
       "branch": "main",
-      "lastAuditedSha": "aa0f29189cfe7692c45181dd52e0c821ad69552c",
-      "auditedOn": "2026-05-23",
+      "lastAuditedSha": "8665ed59643c90eb1056a256a6ddec161aa1cfa1",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "README link (PR #5); android-testing (v2 entry points, MainDispatcherRule, two-schedulers trap, backgroundScope, test/wall clock, testTag counterargument)"
     },
     {
       "repo": "skydoves/compose-performance-skills",
       "branch": "main",
       "lastAuditedSha": "dceb2aad7567bf9f196f9798e35045da4f413943",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "README link (PR #5)"
     },
     {
       "repo": "Kotlin/kotlin-agent-skills",
       "branch": "main",
       "lastAuditedSha": "17852d57f9ff9929d268a02940ac05ed76d24784",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "README link; AGP-9 KMP constraints into kmp-boundaries"
     },
     {
       "repo": "android/skills",
       "branch": "main",
       "lastAuditedSha": "a8f3525d5a1f7fe250fecd0fca43a87755433c8f",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "README link (Related Projects); xml-to-compose-migration deferred to their official skill"
     },
     {
       "repo": "new-silvermoon/awesome-android-agent-skills",
       "branch": "main",
       "lastAuditedSha": "e5d0275e9f28f4e5feb5939210d78ef39568c029",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "inspiration for android-retrofit, android-data-layer, coil-compose, kotlin-coroutines, rxjava-migration, android-gradle-logic, gradle-build-performance"
     },
     {
       "repo": "aldefy/compose-skill",
       "branch": "master",
       "lastAuditedSha": "6c05a4d8ec5d37f8c9383f0ae9f339aee8299f49",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "compose skill forked from here, then diverged (replaced bundled AndroidX snapshots with live source verification)"
     },
     {
       "repo": "hamen/material-3-skill",
       "branch": "master",
       "lastAuditedSha": "bc4e480586621a22f589b78e833a5e999cfb3c8c",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "android-ux (M3 contrast levels, canonical layouts, foldable posture patterns)"
     },
     {
       "repo": "hamen/compose_skill",
       "branch": "main",
       "lastAuditedSha": "e16e45cc1ea2124e75a7a1e8b32061b01417956d",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "README link (compose audit reference)"
     },
     {
       "repo": "Meet-Miyani/compose-skill",
       "branch": "main",
       "lastAuditedSha": "982c240e47718b3b0525c5bbe85bf19ff0bb7bec",
-      "auditedOn": "2026-05-23",
+      "auditedOn": "2026-06-01",
       "absorbedInto": "inspired kmp-ktor"
     }
   ]
