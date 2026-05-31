@@ -586,63 +586,55 @@ fun ResponsiveLayoutPreview() {
 
 Source: `androidx.compose.ui.tooling.preview`
 
-## CompositionLocal
+### Composite Preview Annotations
 
-Provide implicit parameters without threading them through the hierarchy.
-
-### When to Use
-- **Theming:** Pass `Colors`, `Typography` implicitly
-- **Navigation:** Access from deep in composable tree
-- **Locale/Strings:** Avoid passing through every composable
+Define once, use everywhere:
 
 ```kotlin
-// ✅ Define at top level
-val LocalUser = staticCompositionLocalOf<User?> { null }
+@Preview(name = "Light", uiMode = Configuration.UI_MODE_NIGHT_NO)
+@Preview(name = "Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "Large Font", fontScale = 1.5f)
+@Preview(name = "Small Device", device = "spec:width=320dp,height=640dp,dpi=320")
+@Preview(name = "Tablet", device = Devices.TABLET)
+@Preview(name = "Foldable", device = Devices.FOLDABLE)
+@Preview(name = "RTL", locale = "ar")
+annotation class ComponentPreviews
+```
 
+Apply to every extracted composable:
+```kotlin
+@ComponentPreviews
 @Composable
-fun App(user: User) {
-    CompositionLocalProvider(LocalUser provides user) {
-        MainContent()
+private fun ConversationRowPreview() {
+    AppTheme {
+        ConversationRow(
+            conversation = previewConversation(),
+            onClick = {}
+        )
     }
-}
-
-// ✅ Access deep in tree without passing through every composable
-@Composable
-fun UserGreeting() {
-    val user = LocalUser.current
-    Text("Hello, ${user?.name}")
 }
 ```
 
-### When NOT to Use
-- **Configuration params:** If only 1-2 levels deep, pass directly
-- **Frequently changing values:** Can cause unnecessary recomposition
-- **Dependencies:** Use dependency injection at ViewModel level
-
+For data-driven previews, use `PreviewParameterProvider`:
 ```kotlin
-// ❌ Over-use: should pass `title` directly
-val LocalTitle = staticCompositionLocalOf<String> { "" }
-
-@Composable
-fun Parent() {
-    CompositionLocalProvider(LocalTitle provides "My Title") {
-        Child()
-    }
+class ConversationPreviewProvider : PreviewParameterProvider<Conversation> {
+    override val values = sequenceOf(
+        Conversation(id = "1", title = "Short title", unreadCount = 0),
+        Conversation(id = "2", title = "Very long conversation title that might wrap", unreadCount = 99),
+        Conversation(id = "3", title = "", unreadCount = 0), // Empty title edge case
+    )
 }
 
-// ✅ Just pass it
+@ComponentPreviews
 @Composable
-fun Parent(title: String) {
-    Child(title = title)
+private fun ConversationRowPreview(
+    @PreviewParameter(ConversationPreviewProvider::class) conversation: Conversation
+) {
+    AppTheme { ConversationRow(conversation = conversation, onClick = {}) }
 }
-
-@Composable
-fun Child(title: String) { ... }
 ```
 
-**Types (recomposition scope is the key difference):**
-- `staticCompositionLocalOf`: When the value changes, the **entire subtree** below the `CompositionLocalProvider` is invalidated and recomposed. Use for values that truly never change during composition (theme, spacing, DI-provided dependencies).
-- `compositionLocalOf`: When the value changes, only composables that **actually read** `.current` are invalidated. Use for values that may change during composition (user session, locale, scroll state).
+**CMP note:** In `commonMain`, use `@Preview` from `org.jetbrains.compose.ui.tooling.preview`. Device-specific previews (`Devices.TABLET`) are Android-only.
 
 ## Composable Return Values
 
@@ -677,117 +669,6 @@ fun FormScreen() {
 ```
 
 **Rationale:** Composables are executed during composition, which happens at unpredictable times and may be skipped or reordered.
-
-## Screen-Level Composables
-
-Structure screens as a thin ViewModel integration layer above pure composables.
-
-### Recommended Pattern
-```kotlin
-// ✅ Screen composable: connects ViewModel
-@Composable
-fun UserDetailsScreen(
-    viewModel: UserDetailsViewModel = hiltViewModel(),
-    userId: String
-) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(userId) {
-        viewModel.loadUser(userId)
-    }
-
-    UserDetailsContent(
-        uiState = uiState,
-        onRetry = { viewModel.loadUser(userId) }
-    )
-}
-
-// ✅ Content composable: pure (testable, reusable)
-@Composable
-private fun UserDetailsContent(
-    uiState: UiState,
-    onRetry: () -> Unit
-) {
-    when (uiState) {
-        is UiState.Loading -> LoadingUI()
-        is UiState.Success -> SuccessUI(uiState.user)
-        is UiState.Error -> ErrorUI(uiState.message, onRetry)
-    }
-}
-
-// ✅ Composable for preview/testing
-@Preview
-@Composable
-private fun UserDetailsContentPreview() {
-    UserDetailsContent(
-        uiState = UiState.Success(User(1, "Alice")),
-        onRetry = {}
-    )
-}
-```
-
-**Benefits:**
-- Public screen composable integrates ViewModel
-- Private content composable is pure, testable, previewable
-- Clear separation: UI logic (public) vs rendering (private)
-
-### Framework state stays in the UI composable
-
-**Framework state is *allowed* in the UI composable** — not over-hoisted to the ViewModel. `LazyListState`, `LazyGridState`, `ScrollState`, `PagerState`, `FocusRequester`, `BringIntoViewRequester`, `Animatable`, `TextFieldState`, and snackbar/drawer state holders are **framework state** (the Compose layer's mechanics), not business state.
-
-**WHY:** Hoisting framework state to a ViewModel couples UI mechanics to the state holder and breaks Compose lifecycle assumptions. Animation suspend functions (`Animatable.animateTo`, `LazyListState.animateScrollToItem`, `BringIntoViewRequester.bringIntoView`) called from `viewModelScope` produce broken behaviour because the animation clock is tied to the composition, not the ViewModel — see `compose/references/state-management.md` for the full failure mode.
-
-**Only business state** — loaded data, screen mode, user inputs that drive queries, anything that must survive configuration change with semantic meaning — belongs in the state holder.
-
-```kotlin
-// ✅ RIGHT — framework state in the UI composable, business state in the ViewModel
-@Composable
-fun ConversationScreen(viewModel: ConversationViewModel = hiltViewModel()) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val listState = rememberLazyListState()        // ✅ framework state — stays here
-    val focusRequester = remember { FocusRequester() }  // ✅ framework state — stays here
-
-    LaunchedEffect(uiState.scrollToTopSignal) {
-        listState.animateScrollToItem(0)            // ✅ animation clock owned by composition
-    }
-
-    ConversationContent(
-        uiState = uiState,                          // ✅ business state from VM
-        listState = listState,
-        focusRequester = focusRequester,
-        onAction = viewModel::onAction,
-    )
-}
-```
-
-```kotlin
-// ❌ WRONG — LazyListState hoisted to ViewModel
-class ConversationViewModel : ViewModel() {
-    val listState = LazyListState()                 // ❌ animation clock won't work
-
-    fun scrollToTop() {
-        viewModelScope.launch {
-            listState.animateScrollToItem(0)        // ❌ broken: wrong clock, wrong scope
-        }
-    }
-}
-```
-
-**Anti-pattern:** Passing ViewModel to child composables. Keep it at screen level only.
-
-```kotlin
-// ❌ Couples child to ViewModel
-@Composable
-fun UserCard(viewModel: UserViewModel) {
-    val user by viewModel.user.collectAsStateWithLifecycle()
-    Text(user.name)
-}
-
-// ✅ Pass only the data
-@Composable
-fun UserCard(user: User) {
-    Text(user.name)
-}
-```
 
 ## Reusability Guidelines
 
@@ -917,177 +798,3 @@ fun ParentScreen(viewModel: ParentViewModel) {
 
 **Source references:** `androidx.compose.material3`, `androidx.compose.ui.tooling.preview`, `androidx.compose.runtime.CompositionLocal`
 
-## Design-to-Composable Decomposition
-
-A systematic 5-step process for translating a visual design (Figma frame, screenshot, or spec) into a composable tree:
-
-**Step 1: Identify the root layout structure**
-- Full-screen Scaffold? (TopAppBar + content + bottom bar + FAB)
-- Scrollable content? (LazyColumn vs Column with verticalScroll)
-- Tabbed layout? (TabRow + HorizontalPager)
-- Dialog or bottom sheet?
-
-**Step 2: Decompose into visual sections (top-down)**
-- Identify major horizontal sections (header, content area, footer)
-- Within each section, identify horizontal groupings (icon + text rows, card grids)
-- This mirrors the DCGen divide-and-conquer approach: split horizontally first, then vertically
-
-**Step 3: For each section, identify the layout type**
-- Items stacked vertically with equal spacing -> `Column` with `Arrangement.spacedBy()`
-- Items side by side -> `Row` with weights or fixed sizes
-- Items overlapping -> `Box` with alignment modifiers
-- Grid of cards -> `LazyGrid` or `FlowRow`
-- Scrollable list of items -> `LazyColumn`
-
-**Step 4: Extract visual properties and map to theme**
-- Background colors -> `MaterialTheme.colorScheme.*`
-- Typography -> `MaterialTheme.typography.*` (headlineLarge, bodyMedium, etc.)
-- Spacing -> 4dp/8dp grid increments, use `Arrangement.spacedBy()` and `Modifier.padding()`
-- Corner radius -> `MaterialTheme.shapes.*`
-- Elevation -> `Card` or `Surface` with `tonalElevation`
-
-**Step 5: Identify interactive elements**
-- Buttons, text fields, toggles, checkboxes -> map to Material 3 components
-- Custom clickable areas -> `Modifier.clickable` with `role = Role.Button`
-- Add `contentDescription` for accessibility
-- Ensure 48dp minimum touch targets
-
-## Screen Structure Patterns
-
-The standard screen pattern separates ViewModel integration from UI:
-
-```kotlin
-@Composable
-fun ConversationScreen(
-    viewModel: ConversationViewModel = hiltViewModel(),
-    onNavigateToDetail: (String) -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    ConversationContent(
-        uiState = uiState,
-        onAction = viewModel::onAction,
-        onNavigateToDetail = onNavigateToDetail
-    )
-}
-
-@Composable
-private fun ConversationContent(
-    uiState: ConversationUiState,
-    onAction: (ConversationAction) -> Unit,
-    onNavigateToDetail: (String) -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Conversations") })
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { onAction(ConversationAction.Create) }) {
-                Icon(Icons.Default.Add, contentDescription = "New conversation")
-            }
-        }
-    ) { innerPadding ->
-        // MUST use innerPadding -- ignoring it causes content overlap
-        when (val state = uiState) {
-            is ConversationUiState.Loading -> {
-                Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            is ConversationUiState.Success -> {
-                LazyColumn(modifier = Modifier.padding(innerPadding)) {
-                    items(state.conversations, key = { it.id }) { conversation ->
-                        ConversationRow(
-                            conversation = conversation,
-                            onClick = { onNavigateToDetail(conversation.id) }
-                        )
-                    }
-                }
-            }
-            is ConversationUiState.Error -> {
-                ErrorContent(state.message, modifier = Modifier.padding(innerPadding))
-            }
-        }
-    }
-}
-```
-
-Key pattern: ViewModel at screen level, pure content composable underneath. The content composable receives state + callbacks, never the ViewModel. This makes it previewable and testable.
-
-## Composite Preview Annotations
-
-Define once, use everywhere:
-
-```kotlin
-@Preview(name = "Light", uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Preview(name = "Large Font", fontScale = 1.5f)
-@Preview(name = "Small Device", device = "spec:width=320dp,height=640dp,dpi=320")
-@Preview(name = "Tablet", device = Devices.TABLET)
-@Preview(name = "Foldable", device = Devices.FOLDABLE)
-@Preview(name = "RTL", locale = "ar")
-annotation class ComponentPreviews
-```
-
-Apply to every extracted composable:
-```kotlin
-@ComponentPreviews
-@Composable
-private fun ConversationRowPreview() {
-    AppTheme {
-        ConversationRow(
-            conversation = previewConversation(),
-            onClick = {}
-        )
-    }
-}
-```
-
-For data-driven previews, use `PreviewParameterProvider`:
-```kotlin
-class ConversationPreviewProvider : PreviewParameterProvider<Conversation> {
-    override val values = sequenceOf(
-        Conversation(id = "1", title = "Short title", unreadCount = 0),
-        Conversation(id = "2", title = "Very long conversation title that might wrap", unreadCount = 99),
-        Conversation(id = "3", title = "", unreadCount = 0), // Empty title edge case
-    )
-}
-
-@ComponentPreviews
-@Composable
-private fun ConversationRowPreview(
-    @PreviewParameter(ConversationPreviewProvider::class) conversation: Conversation
-) {
-    AppTheme { ConversationRow(conversation = conversation, onClick = {}) }
-}
-```
-
-**CMP note:** In `commonMain`, use `@Preview` from `org.jetbrains.compose.ui.tooling.preview`. Device-specific previews (`Devices.TABLET`) are Android-only.
-
-## Adaptive Layouts
-
-Use `WindowSizeClass` to adapt layouts for different screen sizes:
-
-```kotlin
-@Composable
-fun AdaptiveScreen(windowSizeClass: WindowSizeClass) {
-    when (windowSizeClass.widthSizeClass) {
-        WindowWidthSizeClass.Compact -> {
-            // Phone: single column
-            SinglePaneLayout()
-        }
-        WindowWidthSizeClass.Medium -> {
-            // Small tablet: two panes
-            TwoPaneLayout()
-        }
-        WindowWidthSizeClass.Expanded -> {
-            // Large tablet/desktop: list-detail
-            ListDetailLayout()
-        }
-    }
-}
-```
-
-For navigation, use `NavigationSuiteScaffold` which automatically switches between bottom nav (compact), rail (medium), and drawer (expanded).
-
-For canonical layout patterns (Feed, List-Detail, Supporting Pane), foldable postures (tabletop, book mode), and M3 compliance auditing, see `android-skills:android-ux`.

@@ -285,7 +285,7 @@ fun `refreshing list restores focus to previously-focused article by id`() {
 }
 ```
 
-Use `assertIsFocused()` to assert *which* node owns focus; screenshot tests are for the *appearance* of focus (ring/scale/elevation), not ownership. See `android-skills:android-tdd` for the broader test-shape decision.
+Use `assertIsFocused()` to assert *which* node owns focus; screenshot tests are for the *appearance* of focus (ring/scale/elevation), not ownership. See `android-skills:android-testing` for the broader test-shape decision.
 
 ## Review Red Flags
 
@@ -304,4 +304,4 @@ Use `assertIsFocused()` to assert *which* node owns focus; screenshot tests are 
 - Key events: https://developer.android.com/develop/ui/compose/touch-input/handling-key-events
 - androidx.tv.material3: https://developer.android.com/jetpack/androidx/releases/tv
 
-For test-shape decisions and semantics-first selectors, see `android-skills:android-tdd`. For predictive-back animation, see `compose/references/animation.md`. For the semantics layer (separate from focus traversal), see `compose/references/accessibility.md`.
+For test-shape decisions and semantics-first selectors, see `android-skills:android-testing`. For predictive-back animation, see `compose/references/animation.md`. For the semantics layer (separate from focus traversal), see `compose/references/accessibility.md`.

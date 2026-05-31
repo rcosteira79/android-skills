@@ -7,14 +7,14 @@
       "branch": "main",
       "lastAuditedSha": "4af4fe922a3f889c585449189b77174c85a75422",
       "auditedOn": "2026-05-23",
-      "absorbedInto": "kmp-boundaries (new), compose/references/focus-navigation (new), android-tdd, kotlin-coroutines, kotlin-flows, compose authoring rules"
+      "absorbedInto": "kmp-boundaries (new), compose/references/focus-navigation (new), android-testing, kotlin-coroutines, kotlin-flows, compose authoring rules"
     },
     {
       "repo": "skydoves/android-testing-skills",
       "branch": "main",
       "lastAuditedSha": "aa0f29189cfe7692c45181dd52e0c821ad69552c",
       "auditedOn": "2026-05-23",
-      "absorbedInto": "README link (PR #5); android-tdd (v2 entry points, MainDispatcherRule, two-schedulers trap, backgroundScope, test/wall clock, testTag counterargument)"
+      "absorbedInto": "README link (PR #5); android-testing (v2 entry points, MainDispatcherRule, two-schedulers trap, backgroundScope, test/wall clock, testTag counterargument)"
     },
     {
       "repo": "skydoves/compose-performance-skills",
