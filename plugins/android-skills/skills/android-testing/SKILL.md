@@ -1,9 +1,9 @@
 ---
-name: android-tdd
+name: android-testing
 description: Use when writing, fixing, or refactoring Android/KMP code in Kotlin — supplements superpowers:test-driven-development with Android's three-tier test model, fake-first strategy, coroutine testing, and Compose UI testing.
 ---
 
-# Android TDD
+# Android Testing
 
 ## Overview
 

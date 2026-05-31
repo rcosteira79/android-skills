@@ -412,7 +412,7 @@ fun `getUser maps 404 to DataError-Server`() = runTest {
 }
 ```
 
-For multi-route tests, branch on `request.url.encodedPath` inside the `MockEngine` lambda. See `android-skills:android-tdd` for how Ktor fakes fit the three-tier test model.
+For multi-route tests, branch on `request.url.encodedPath` inside the `MockEngine` lambda. See `android-skills:android-testing` for how Ktor fakes fit the three-tier test model.
 
 ---
 

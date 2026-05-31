@@ -583,4 +583,4 @@ WRONG because calling `.first()` inside a `map` lambda triggers a new collection
 
 ## Testing
 
-Flow testing lives in `android-skills:android-tdd` — Turbine for hot flows, `backgroundScope` collection, `StateFlow.value` assertions, `MainDispatcherRule`, and the dispatcher/scheduler traps. Write tests first when that skill is active; otherwise ask before adding them.
+Flow testing lives in `android-skills:android-testing` — Turbine for hot flows, `backgroundScope` collection, `StateFlow.value` assertions, `MainDispatcherRule`, and the dispatcher/scheduler traps. Write tests first when `superpowers:test-driven-development` is active; otherwise ask before adding them.

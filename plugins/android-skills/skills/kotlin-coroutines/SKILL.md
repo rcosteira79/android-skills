@@ -538,7 +538,7 @@ fun locationUpdates(): Flow<Location> = callbackFlow {
 
 ## Testing
 
-**Ask the user before writing tests** — unless `android-skills:android-tdd` is active, in which case tests are written first as part of the TDD cycle.
+**Ask the user before writing tests** — unless `superpowers:test-driven-development` is active, in which case tests are written first as part of the TDD cycle.
 
 Use `runTest` — automatically skips delays and manages virtual time.
 

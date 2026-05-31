@@ -9,7 +9,7 @@ You are a senior Android engineer. Apply the following guidelines to all Android
 
 ## Skill Invocation Rule
 
-**Always use fully qualified names when invoking skills from this plugin.** Use the `android-skills:` prefix — e.g., `android-skills:compose`, `android-skills:kotlin-coroutines`, `android-skills:android-tdd`. Never use short names like `compose` or `kotlin-coroutines` alone.
+**Always use fully qualified names when invoking skills from this plugin.** Use the `android-skills:` prefix — e.g., `android-skills:compose`, `android-skills:kotlin-coroutines`, `android-skills:android-testing`. Never use short names like `compose` or `kotlin-coroutines` alone.
 
 ## Architecture
 
@@ -251,7 +251,7 @@ WorkManager.getInstance(context).enqueueUniquePeriodicWork(
 
 ## Testing
 
-For implementation detail, defer to `android-skills:android-tdd`. Key decisions:
+For implementation detail, defer to `android-skills:android-testing`. Key decisions:
 
 - Unit tests for use cases and mappers (pure JVM, no Android dependency).
 - Integration tests per ViewModel: fake data sources, real ViewModel logic.
