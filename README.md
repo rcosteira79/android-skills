@@ -74,6 +74,8 @@ Test-driven development for Android/KMP — extends TDD with Android's three-tie
 
 > Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
+> Granular tool references (Mockito, MockK, `runTest`, Turbine, Robolectric, Espresso, UiAutomator, Gradle Managed Devices, `kotlin.test`) cross-reference the `jvm-tests`, `instrumentation`, and `kotlin` sets of [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills).
+
 ### `android-ux`
 Material Design 3 UX principles for Android — touch targets (48×48dp), 8dp spacing grid, navigation patterns (Bottom Bar, Rail, Drawer), canonical layouts (Feed, List-Detail, Supporting Pane), foldable postures (tabletop, book mode), M3 contrast levels, safe area handling, accessibility, animation timing, keyboard input types, and an M3 compliance audit that scores screens across 10 categories.
 
@@ -162,7 +164,7 @@ Gradle build optimisation — Build Scans, configuration cache, build cache, kap
 - [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) — broad Compose + KMP skill covering MVI/MVVM, Navigation 2 & 3, Ktor, Koin/Hilt, Room, DataStore, Paging, and iOS interop; inspired the `kmp-ktor` skill in this repo
 - [chrisbanes/skills](https://github.com/chrisbanes/skills) — Chris Banes' narrow, opinionated Compose and Kotlin skills covering state authoring, side effects, recomposition performance, stability diagnostics, focus navigation, UI testing patterns, structured concurrency, flow primitive selection, and KMP expect/actual boundaries; informed the `kmp-boundaries` and `focus-navigation` references and authoring rules across several existing skills
 - [android-reverse-engineering-skill](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) — Claude Code plugin for decompiling APKs, extracting API endpoints, and tracing call flows
-- [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills) — 50+ source-grounded testing skills spanning Compose UI tests, JVM unit tests, instrumentation (Espresso/UiAutomator), ADB-driven E2E, and test doubles. Complements our `android-tdd`. Apache-2.0.
+- [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills) — 54 source-grounded testing skills organized as a 7-set catalog the author says to cherry-pick from: `compose` (25), `fundamentals` (5), `kotlin` (1), `jvm-tests` (6), `instrumentation` (6), `platform` (1), `adb` (10). Complements our `android-tdd`: the `jvm-tests`, `instrumentation`, and `kotlin` sets fit cleanly alongside it without overlap; the `compose` and `fundamentals` sets overlap our `compose` and `android-tdd` coverage. Apache-2.0.
 - [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills) — sister repo covering the *performance* side of Compose (stability, recomposition, lazy layouts, baseline profiles, R8, hot reload). Same authoring spec; install both for full testing + performance coverage.
 
 ## License
