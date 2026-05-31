@@ -5,8 +5,6 @@ description: Use when setting up or working with Koin in Android or KMP projects
 
 # Koin Dependency Injection (Android and KMP)
 
-Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-skill)'s Koin reference. MIT licensed.
-
 Pragmatic Kotlin DI — no annotation processor for the Classic DSL, full KMP support, and a `verify()` check that catches missing bindings at test time. **Koin vs Hilt:** Koin runs in `commonMain` (Hilt does not) and verifies the graph via `verify()` instead of codegen; Hilt is Android-only, validates the graph through codegen, and integrates deeply with Jetpack (`@HiltViewModel`, `hiltViewModel()`). Both are first-class. **Related:** `android-skills:kmp-ktor` (per-platform engine wired via Koin), `android-skills:android-data-layer`.
 
 Dependencies (via `koin-bom`, so artifacts stay version-aligned): `koin-core` (KMP engine), `koin-android` (`Application`/`Context`), `koin-androidx-compose` (`koinViewModel`/`koinInject` on Android), `koin-compose-viewmodel` (KMP Compose), `koin-compose-viewmodel-navigation` (Nav 3), `koin-test`, and optional `koin-annotations` + `koin-ksp-compiler` for KSP.

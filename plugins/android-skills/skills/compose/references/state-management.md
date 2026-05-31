@@ -100,7 +100,7 @@ class SearchViewModel : ViewModel() {
     private val _query = MutableStateFlow("")
     val results = _query
         .debounce(300)
-        .flatMapLatest { repository.search(it) }
+        .flatMapLatest { repository.search(it) }  // assumes search(): Flow<List<Result>>; use mapLatest if it's a suspend fun returning the list directly
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     fun onQueryChange(new: String) { _query.value = new }
 }
@@ -244,7 +244,7 @@ WHY: the fast path skips the bookkeeping needed to host child composables or res
 
 ## Stability Annotations
 
-`@Immutable` / `@Stable` and strong-skipping mechanics are covered canonically in `compose/references/performance.md` (`@Immutable` vs `@Stable` boundary, the five stability classifications, `stabilityConfigurationFiles`, strong skipping). The state-management-relevant rule: **annotate state-holder and parameter types so the compiler can skip** — an unannotated type with all-stable properties is treated as unstable and recomposes unnecessarily.
+`@Immutable` / `@Stable` and strong-skipping mechanics are covered canonically in `compose/references/performance.md` (`@Immutable` vs `@Stable` boundary, the five stability classifications, `stabilityConfigurationFiles`, strong skipping). The state-management-relevant rule: under strong skipping (default on Kotlin 2.0.20+), same-module classes with all-stable properties are inferred stable automatically — don't annotate speculatively. Reach for `@Immutable` / `@Stable` only when inference can't see the type (cross-module boundaries, generic wrappers) or when you want to document an intentional stability contract.
 
 ## State in ViewModels: StateFlow vs Compose State
 
@@ -377,7 +377,9 @@ class SearchState(val listState: LazyListState, private val scope: CoroutineScop
 2. **Durable state + acknowledgement over ephemeral events when the user can see the outcome.** Before reaching for `Channel`/`SharedFlow`, ask: *would losing this signal desynchronize what the user thinks the app did from the underlying state?* If yes, model it as a field on `UiState` the UI clears after consumption — not a one-shot event that drops on a config change or backgrounding.
 
 ```kotlin
-// WRONG — one-shot event for an outcome the user must see (dropped if the collector is gone)
+// WRONG — outcome the user must see; lost on process death (even a buffered
+// Channel's queue dies with the process), and SharedFlow(replay = 0) drops if
+// no collector is active. A UiState field backed by SavedStateHandle survives both.
 _events.send(CheckoutEvent.PaymentResult(result))
 
 // RIGHT — durable state in UiState; acknowledgement clears it

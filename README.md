@@ -67,9 +67,9 @@ Follow Google's installation instructions: <https://developer.android.com/tools/
 Skills are invoked automatically based on context (e.g. working on Compose code activates the `compose` skill).
 
 ### `android-dev`
-Senior Android engineering knowledge and best practices for Android and KMP projects. Covers architecture, code quality, and platform-specific patterns. Includes a State and Events section with a state-owner decision table, event-naming convention for MVI, four-bucket state modeling, and `Channel(BUFFERED)` vs `SharedFlow(replay = 0)` rationale.
+Senior Android engineering knowledge and best practices for Android and KMP projects — architecture, code quality, MVI event naming, four-bucket UiState modeling, and `Channel(BUFFERED)` vs `SharedFlow(replay = 0)` rationale for one-shot effects.
 
-> State-owner decision table, event-naming convention, four-bucket state modeling, and the durable-state-with-acknowledgement framing for one-shot UI effects adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
+> Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
 
 ### `android-tdd`
 Test-driven development for Android/KMP — extends TDD with Android's three-tier test model, fake-first strategy, coroutine testing, Compose UI testing, and Roborazzi screenshot testing.

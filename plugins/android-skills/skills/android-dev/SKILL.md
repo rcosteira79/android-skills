@@ -63,6 +63,7 @@ Open a sibling ViewModel in the same feature module — or `Grep` the feature fo
 | Scope | Owner | When |
 |---|---|---|
 | Single composable | `remember { mutableStateOf(...) }` | Transient UI state that resets on screen leave (expanded card, tooltip visibility, animation triggers) |
+| Single composable, must survive rotation / low-memory kill | `rememberSaveable { mutableStateOf(...) }` | UI-local state that needs to outlive config change / process death without involving a ViewModel (tab index, expanded panel, scroll position, form field text) |
 | Several composables in one screen | Plain state holder class with `mutableStateOf` | UI orchestration that crosses composables but never outlives the screen (form coordinator, list selection mode) |
 | Survives recomposition AND configuration change | `ViewModel` exposing `StateFlow<UiState>` | App state — anything the user can return to, anything tied to a domain action |
 | Survives process death | `ViewModel.savedStateHandle` or a real persistence layer | User-input drafts that shouldn't be lost on low-memory kill |
@@ -102,11 +103,6 @@ data class CheckoutUiState(
     val cardNumber: String = "",
     val shippingNotes: String = "",
 
-    // 2. Derived/computed — pure functions of bucket 1
-    val emailValid: Boolean = email.isValidEmail(),
-    val cardValid: Boolean = cardNumber.passesLuhn(),
-    val canSubmit: Boolean = emailValid && cardValid && shippingNotes.length < 500,
-
     // 3. Persisted snapshot — last value read from the repository or stored cross-screen
     val savedShippingAddress: Address? = null,
     val savedPaymentMethod: PaymentMethod? = null,
@@ -114,7 +110,15 @@ data class CheckoutUiState(
     // 4. Transient UI-only — flags that shouldn't survive the screen
     val isSubmitting: Boolean = false,
     val showCardScannerOverlay: Boolean = false,
-)
+) {
+    // 2. Derived/computed — class properties, NOT constructor parameters. A caller
+    //    must not be able to instantiate (or `copy()` to) an inconsistent state by
+    //    passing `emailValid = false` alongside a valid email; deriving on read
+    //    guarantees the projection always reflects bucket 1.
+    val emailValid: Boolean get() = email.isValidEmail()
+    val cardValid: Boolean get() = cardNumber.passesLuhn()
+    val canSubmit: Boolean get() = emailValid && cardValid && shippingNotes.length < 500
+}
 ```
 
 Mixing the four buckets produces bugs that look architectural. Storing `isSubmitting` in `savedStateHandle` keeps the spinner forever after process death. Computing `canSubmit` outside the data class lets it drift from the inputs. Persisting `cardNumber` across screens leaks PII. The discipline is that the bucket dictates lifecycle and persistence rules, not the field itself.

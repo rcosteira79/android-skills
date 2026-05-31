@@ -21,11 +21,14 @@ Paging 3 streams paged data from a `PagingSource` (and optionally a `RemoteMedia
 paging = "3.5.0"
 
 [libraries]
-androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
+androidx-paging-common   = { module = "androidx.paging:paging-common",   version.ref = "paging" }
+androidx-paging-runtime  = { module = "androidx.paging:paging-runtime",  version.ref = "paging" }
 androidx-paging-compose  = { module = "androidx.paging:paging-compose",  version.ref = "paging" }
 androidx-paging-testing  = { module = "androidx.paging:paging-testing",  version.ref = "paging" }
 ```
 Wire into the module: `implementation(libs.androidx.paging.runtime)` + `implementation(libs.androidx.paging.compose)` + `testImplementation(libs.androidx.paging.testing)`.
+
+**Domain layer (clean architecture):** if the project has a framework-agnostic domain module, depend only on `androidx.paging:paging-common` there — it ships `PagingSource`, `PagingData`, `LoadResult`, and the core types with no Android dependencies, so `PagingSource` interfaces and use cases can live in domain without pulling Android in. The `paging-runtime` artifact stays in the data layer.
 
 ---
 

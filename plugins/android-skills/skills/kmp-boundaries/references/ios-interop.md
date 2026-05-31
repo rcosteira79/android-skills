@@ -2,8 +2,6 @@
 
 Kotlin↔Swift binding mechanics that apply to any KMP module exposed to iOS. Companion to `kmp-boundaries/SKILL.md` (boundary design) and `compose/references/multiplatform.md` (Compose-specific multiplatform patterns).
 
-Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-skill)'s iOS Swift Interop reference. MIT licensed.
-
 ---
 
 ## Kotlin → Swift Naming

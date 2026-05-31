@@ -282,7 +282,7 @@ fun ScreenWithLifecycleLegacy() {
 }
 ```
 
-Reach for the legacy path only when you need an event outside START/STOP/RESUME/PAUSE (e.g., `ON_CREATE`/`ON_DESTROY` — rare in Compose because composition lifecycle and Activity lifecycle are different scopes anyway).
+For a single event without pair semantics (log telemetry on `ON_PAUSE`, reset state on `ON_CREATE`), `androidx.lifecycle.compose.LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { … }` fires once each time that event arrives — no cleanup pair. Between `LifecycleStartEffect`, `LifecycleResumeEffect`, and `LifecycleEventEffect`, the modern APIs cover every event; reach for the legacy `DisposableEffect + LifecycleEventObserver` path only on lifecycle 2.7 and older.
 
 **Do:** Use `DisposableEffect` for every resource you allocate (or the modern `LifecycleStartEffect`/`LifecycleResumeEffect` for lifecycle hooks).
 **Don't:** Forget the `onDispose` / `onStopOrDispose` / `onPauseOrDispose` block (resource leaks result).

@@ -80,7 +80,7 @@ adb pull /data/misc/perfetto-traces/trace.pftrace ./
 
 Then open the trace at https://ui.perfetto.dev and run SQL against it (`SELECT name, dur FROM slice WHERE dur > 16e6` for frames slower than 16ms, etc.).
 
-For an agent-driven workflow — translating an investigation intent (jank, slow startup, battery drain) into the right Perfetto SQL and iterating across the trace — see Google's [`perfetto-sql`](https://github.com/android/skills/tree/main/profilers/perfetto-sql) and [`perfetto-trace-analysis`](https://github.com/android/skills/tree/main/profilers/perfetto-trace-analysis) skills. They provide Domain Hints (CPU/Graphics/I/O/IPC/Memory/Power), a mandatory scratchpad chain-of-evidence pattern, and `GLOB`-over-`LIKE` query rules.
+For an agent-driven workflow — translating an investigation intent (jank, slow startup, battery drain) into the right Perfetto SQL and iterating across the trace — see Google's [`perfetto-sql`](https://github.com/android/skills/tree/main/profilers/perfetto-sql) and [`perfetto-trace-analysis`](https://github.com/android/skills/tree/main/profilers/perfetto-trace-analysis) skills (`android skills list` to check for a local install; `android skills add perfetto-sql perfetto-trace-analysis` otherwise). They provide Domain Hints (CPU/Graphics/I/O/IPC/Memory/Power), a mandatory scratchpad chain-of-evidence pattern, and `GLOB`-over-`LIKE` query rules.
 
 ### R8 / ProGuard — Obfuscated Stack Traces
 
@@ -103,7 +103,7 @@ If a class is unexpectedly removed or renamed, add a `-keep` rule in `proguard-r
 # Then inspect: app/build/outputs/mapping/release/usage.txt (removed) and seeds.txt (kept)
 ```
 
-For the **inverse problem** — reading obfuscated third-party code or decoding a stack trace from a library where the mapping file isn't yours — `retrace` doesn't apply. Use `jadx --deobf` (consistent renames across the decompiled output) or `jadx --deobf-map` (when the SDK ships a mapping). The [`android-reverse-engineering` plugin](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) covers the full workflow including the anchor-via-strings strategy for navigating obfuscated code by string literals and framework class names that survive obfuscation.
+For the **inverse problem** — reading obfuscated third-party code or decoding a stack trace from a library where the mapping file isn't yours — `retrace` doesn't apply. Use `jadx --deobf` (consistent renames across the decompiled output) or `jadx --deobf-map` (when the SDK ships a mapping). The [`android-reverse-engineering` plugin](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) covers the full workflow including the anchor-via-strings strategy for navigating obfuscated code by string literals and framework class names that survive obfuscation (check if it's already installed locally first — it ships as `android-reverse-engineering:*` skills).
 
 ### Gradle Build Failures
 
