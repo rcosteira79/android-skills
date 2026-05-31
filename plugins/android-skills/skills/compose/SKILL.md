@@ -34,7 +34,7 @@ When helping with Compose code, follow this checklist:
 - If the user shares a Figma frame, screenshot, or design spec, consult `references/design-to-compose.md`
 - Decompose the design into a composable tree using the 5-step methodology
 - Map design tokens to MaterialTheme, spacing to CompositionLocals
-- Identify animation needs and consult `references/animation.md` for recipes
+- Identify animation needs — `references/animation.md` (primitives, specs, decision tree), `references/animation-recipes.md` (recipe cookbook + choreography), or `references/animation-advanced.md` (shared-element, gesture-driven, predictive back, `graphicsLayer`)
 
 ### 3. Consult the right reference
 Read the relevant reference file(s) from `references/` before answering:
@@ -42,13 +42,16 @@ Read the relevant reference file(s) from `references/` before answering:
 | Topic | Reference File |
 |-------|---------------|
 | `@State`, `remember`, `mutableStateOf`, state hoisting, `derivedStateOf`, `snapshotFlow` | `references/state-management.md` |
-| Structuring composables, slots, extraction, preview | `references/view-composition.md` |
+| Composable naming, slot pattern, extraction, statefulness, preview annotations, reusability, anti-patterns | `references/view-composition.md` |
+| Screen-level composables, screen structure patterns, adaptive layouts | `references/screen-structure.md` |
 | Modifier ordering, custom modifiers, `Modifier.Node` | `references/modifiers.md` |
 | `LaunchedEffect`, `DisposableEffect`, `SideEffect`, `rememberCoroutineScope` | `references/side-effects.md` |
 | `CompositionLocal`, `LocalContext`, `LocalDensity`, custom locals | `references/composition-locals.md` |
 | `LazyColumn`, `LazyRow`, `LazyGrid`, `Pager`, keys, content types | `references/lists-scrolling.md` |
 | `NavHost`, type-safe routes, deep links, shared element transitions, Navigation 3 (`NavDisplay`, back-stack-as-state) | `references/navigation.md` |
-| `animate*AsState`, `AnimatedVisibility`, `Crossfade`, transitions | `references/animation.md` |
+| `animate*AsState`, `AnimatedVisibility`, `Crossfade`, `updateTransition`, specs (spring/tween/keyframes), decision tree | `references/animation.md` |
+| Animation recipes (shimmer, expandable card, parallax, FAB morph, pull-to-refresh), sequential/parallel/staggered choreography | `references/animation-recipes.md` |
+| Shared element transitions, gesture-driven animations (`Animatable`, `AnchoredDraggable`, `Transformable`), predictive back, `graphicsLayer` performance | `references/animation-advanced.md` |
 | `MaterialTheme`, `ColorScheme`, dynamic color, `Typography`, shapes | `references/theming-material3.md` |
 | Touch targets, spacing, canonical layouts, foldables, M3 compliance audit | `android-skills:android-ux` |
 | Recomposition skipping, stability, baseline profiles, benchmarking | `references/performance.md` |

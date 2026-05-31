@@ -26,25 +26,25 @@ fun DescendantComposable() {
 
 ## compositionLocalOf vs staticCompositionLocalOf
 
-The key difference is **when recomposition is triggered** when a value changes.
+The key difference is the **recomposition scope** when a value changes.
 
 ### compositionLocalOf
-Causes recomposition of all descendants when the value changes. Use when children genuinely depend on the value.
+Tracks reads. When the value changes, only composables that **actually read** `.current` are invalidated. More efficient when the value changes; modest bookkeeping overhead per read.
 
 ```kotlin
 val LocalUserPreferences = compositionLocalOf { UserPreferences() }
 ```
 
-**Recomposition behavior:** All consumers recompose.
+Use for values that may change during composition: user session, locale, scroll-driven state.
 
 ### staticCompositionLocalOf
-No recomposition of descendants; only the direct reader is affected. Use when you're **confident descendants don't depend on updates**, or updates are infrequent.
+Does NOT track reads. When the value changes, the **entire subtree** below the `CompositionLocalProvider` is invalidated and recomposed. Cheaper per read, but a single change blows away everything in scope.
 
 ```kotlin
 val LocalAppVersion = staticCompositionLocalOf { "1.0.0" }
 ```
 
-**⚠️ Pitfall:** If a child reads `LocalAppVersion.current` and expects updates, you'll get stale data. Only use for truly static configuration.
+Use only for values that truly never change during composition: theme, spacing, DI-provided dependencies. If the value flips, the cost is recomposing the whole subtree — which is fine when "the whole subtree" is the right unit of update for a theme switch, but a bug for anything finer-grained.
 
 ### compositionLocalWithComputedDefaultOf
 Introduced for computed default values. The lambda is called each time the value is read when no provider is active.
