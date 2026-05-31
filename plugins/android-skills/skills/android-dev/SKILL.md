@@ -56,6 +56,86 @@ Open a sibling ViewModel in the same feature module — or `Grep` the feature fo
 
 **If the project has an established pattern for X, use it — even if a simpler direct approach would also work.** Simplicity is not a valid reason to diverge from the architecture. The cost of one extra `Event` data object and handler method is trivial; the cost of an architectural inconsistency is cumulative and paid by every future reader.
 
+## State and Events
+
+### Where state lives
+
+| Scope | Owner | When |
+|---|---|---|
+| Single composable | `remember { mutableStateOf(...) }` | Transient UI state that resets on screen leave (expanded card, tooltip visibility, animation triggers) |
+| Single composable, must survive rotation / low-memory kill | `rememberSaveable { mutableStateOf(...) }` | UI-local state that needs to outlive config change / process death without involving a ViewModel (tab index, expanded panel, scroll position, form field text) |
+| Several composables in one screen | Plain state holder class with `mutableStateOf` | UI orchestration that crosses composables but never outlives the screen (form coordinator, list selection mode) |
+| Survives recomposition AND configuration change | `ViewModel` exposing `StateFlow<UiState>` | App state — anything the user can return to, anything tied to a domain action |
+| Survives process death | `ViewModel.savedStateHandle` or a real persistence layer | User-input drafts that shouldn't be lost on low-memory kill |
+
+Don't escalate without reason. A bottom-sheet expansion flag in a ViewModel adds noise for the rest of the screen; a draft email in local state silently disappears when the user backgrounds the app. Match the scope to the lifetime of the data.
+
+### Event naming (MVI)
+
+When a sealed `Event` / `Intent` / `Action` interface drives the ViewModel, name entries by **what happened in the UI**, not what the ViewModel should do about it.
+
+```kotlin
+// RIGHT — describes the UI event
+sealed interface CategoryEvent {
+    data object OnSaveClick : CategoryEvent
+    data class OnNameChange(val value: String) : CategoryEvent
+    data object OnDeleteConfirm : CategoryEvent
+}
+
+// WRONG — describes the ViewModel's reaction
+sealed interface CategoryEvent {
+    data object SaveCategory : CategoryEvent
+    data class UpdateName(val value: String) : CategoryEvent
+    data object DeleteCategory : CategoryEvent
+}
+```
+
+UI-centric names (`OnSaveClick`) survive ViewModel refactors. ViewModel-centric names (`SaveCategory`) describe an implementation that may change — and they read awkwardly when the same event triggers multiple reactions: a `SaveCategory` event that *also* dismisses a dialog and refreshes a list is poorly named for two of its three effects.
+
+### Four-bucket state modeling
+
+Screens with rich interactions (forms, calculators, multi-step wizards) get unmanageable fast when state is a single flat `data class`. Slice `UiState` into four explicit buckets:
+
+```kotlin
+data class CheckoutUiState(
+    // 1. Editable input — what the user types
+    val email: String = "",
+    val cardNumber: String = "",
+    val shippingNotes: String = "",
+
+    // 3. Persisted snapshot — last value read from the repository or stored cross-screen
+    val savedShippingAddress: Address? = null,
+    val savedPaymentMethod: PaymentMethod? = null,
+
+    // 4. Transient UI-only — flags that shouldn't survive the screen
+    val isSubmitting: Boolean = false,
+    val showCardScannerOverlay: Boolean = false,
+) {
+    // 2. Derived/computed — class properties, NOT constructor parameters. A caller
+    //    must not be able to instantiate (or `copy()` to) an inconsistent state by
+    //    passing `emailValid = false` alongside a valid email; deriving on read
+    //    guarantees the projection always reflects bucket 1.
+    val emailValid: Boolean get() = email.isValidEmail()
+    val cardValid: Boolean get() = cardNumber.passesLuhn()
+    val canSubmit: Boolean get() = emailValid && cardValid && shippingNotes.length < 500
+}
+```
+
+Mixing the four buckets produces bugs that look architectural. Storing `isSubmitting` in `savedStateHandle` keeps the spinner forever after process death. Computing `canSubmit` outside the data class lets it drift from the inputs. Persisting `cardNumber` across screens leaks PII. The discipline is that the bucket dictates lifecycle and persistence rules, not the field itself.
+
+### Effects: `Channel(BUFFERED)` vs `SharedFlow(replay = 0)`
+
+For one-shot UI effects from a ViewModel (snack messages, navigation triggers, haptic feedback, scroll-to-top):
+
+| Primitive | When | Behavior |
+|---|---|---|
+| `Channel<Effect>(BUFFERED).receiveAsFlow()` | Effect must not be missed (one-time toast for a payment outcome; navigation that must happen) | Single-consumer; buffers across collector gaps; values delivered exactly once |
+| `SharedFlow<Effect>(replay = 0)` | Effect can be missed if the UI is inactive (transient haptic tick; an analytics-only signal) | Multi-collector; no replay; values dropped if no collector |
+
+If losing the signal would desynchronize what the user thinks the app did from the underlying state, the signal is not ephemeral — promote it to **state plus an acknowledgement** (a `pendingResult: PurchaseResult? = null` field on `UiState`, cleared after the screen consumes it). One-shot effects are for fire-and-forget signals only.
+
+See `android-skills:kotlin-flows` for the full operator-level discussion of `Channel` vs `SharedFlow`.
+
 ## Compose
 
 For implementation detail, defer to `android-skills:compose`. Key architectural decisions:

@@ -156,7 +156,7 @@ For third-party SDKs without a deregistration API: use a flag inside `awaitClose
 | Change upstream execution context | `flowOn(dispatcher)` |
 | Convert cold flow to hot StateFlow | `stateIn(scope, started, initialValue)` |
 | Convert cold flow to hot SharedFlow | `shareIn(scope, started, replay)` |
-| Combine latest values from multiple flows | `combine(flowA, flowB) { a, b -> }` — emits when **any** upstream emits; use for derived UI state from multiple StateFlows |
+| Combine latest values from multiple flows | `combine(flowA, flowB) { a, b -> }` — emits when **any** upstream emits; use for derived UI state from multiple StateFlows. **Warning:** waits for *every* input to emit at least once before producing its first value. If one input is a cold flow that never emits, the combined flow never emits — a common "screen stuck on loading" bug. Make every input a `StateFlow`, give cold inputs `onStart { emit(initial) }`, or sentinel-prefix them. Also: `combine(a, b) { (x, y) -> ... }` does **not** compile — destructuring isn't supported. |
 | Pair emissions one-to-one across flows | `zip(flowA, flowB) { a, b -> }` — waits for both to emit before combining; use when pairings must align |
 | Cancel previous collector block on new emission | `collectLatest { }` — use when processing a new item should cancel processing the previous one (e.g. updating UI) |
 
@@ -392,6 +392,8 @@ LaunchedEffect(Unit) {
 - **Collect with `collect` inside `LaunchedEffect` — never `collectAsStateWithLifecycle`.** The latter preserves the last emission as state, re-consuming the event on every recomposition or configuration change.
 - **Don't expose the `Channel` itself.** Expose `Flow` via `receiveAsFlow()` so callers can't `send`, `close`, or `tryReceive`.
 - **If you do use `SharedFlow(replay = 0)`** for the multi-collector or miss-tolerable cases (see Step 2), note `repeatOnLifecycle` stops collection below `STARTED`, so emissions during pause are lost.
+
+**Edge case: element lost after `receive`-before-`process`.** A `Channel.BUFFERED.receiveAsFlow()` collector that is cancelled *after* `receive()` succeeds but *before* the collector's block processes the element will lose that element — the value is no longer in the channel, but the collector never acted on it. This is rare in practice (most cancellations happen between receives), but it makes "exactly-once" technically "at-most-once-with-very-high-probability." For payment/persistence-critical signals where even this loss would be unacceptable, store the outcome in durable state (a `pendingResult` field on `UiState`, cleared by the UI after consumption) — see `android-skills:compose` → `state-management.md` "Durable state + acknowledgement".
 
 ## Lifecycle-Safe Collection (Android)
 

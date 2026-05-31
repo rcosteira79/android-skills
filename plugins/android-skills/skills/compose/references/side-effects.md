@@ -242,9 +242,30 @@ fun LocationListener(context: Context) {
 
 ### Common Pattern: Lifecycle Events
 
+**Modern path (lifecycle-runtime-compose 2.8+):** use `LifecycleStartEffect` / `LifecycleResumeEffect`. They are purpose-built for "run X when the screen becomes STARTED/RESUMED, clean up when it leaves that state" — exactly the shape that 90% of `DisposableEffect` + `LifecycleEventObserver` code is rewriting by hand.
+
 ```kotlin
 @Composable
 fun ScreenWithLifecycle() {
+    LifecycleStartEffect(Unit) {
+        println("Screen started")
+        onStopOrDispose { println("Screen stopped or composable left") }
+    }
+
+    LifecycleResumeEffect(Unit) {
+        analytics.screenView("home")
+        onPauseOrDispose { analytics.screenLeave("home") }
+    }
+}
+```
+
+The key argument follows the same rules as `LaunchedEffect` — pass values that should restart the effect, or `Unit` for a once-per-composition lifecycle binding.
+
+**Legacy path (lifecycle 2.7 and older — or when you need an event the modern APIs don't expose):** manual observer via `DisposableEffect`.
+
+```kotlin
+@Composable
+fun ScreenWithLifecycleLegacy() {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
     DisposableEffect(lifecycle) {
@@ -256,18 +277,17 @@ fun ScreenWithLifecycle() {
             }
         }
         lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycle.removeObserver(observer) }
     }
 }
 ```
 
-**Do:** Use `DisposableEffect` for every resource you allocate.
-**Don't:** Forget the `onDispose` block (resource leaks result).
+For a single event without pair semantics (log telemetry on `ON_PAUSE`, reset state on `ON_CREATE`), `androidx.lifecycle.compose.LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { … }` fires once each time that event arrives — no cleanup pair. Between `LifecycleStartEffect`, `LifecycleResumeEffect`, and `LifecycleEventEffect`, the modern APIs cover every event; reach for the legacy `DisposableEffect + LifecycleEventObserver` path only on lifecycle 2.7 and older.
 
-Source: `compose/runtime/runtime/src/commonMain/kotlin/androidx/compose/runtime/Effects.kt`
+**Do:** Use `DisposableEffect` for every resource you allocate (or the modern `LifecycleStartEffect`/`LifecycleResumeEffect` for lifecycle hooks).
+**Don't:** Forget the `onDispose` / `onStopOrDispose` / `onPauseOrDispose` block (resource leaks result).
+
+Source: `compose/runtime/runtime/src/commonMain/kotlin/androidx/compose/runtime/Effects.kt`; lifecycle effects in `androidx.lifecycle:lifecycle-runtime-compose`.
 
 ## rememberCoroutineScope — Launching from Event Handlers
 
@@ -611,6 +631,47 @@ Button(onClick = {
     scope.launch { snackbarHostState.showSnackbar("Done") }
 }) { Text("Save") }
 ```
+
+### Side Work in the Composable Body (Focus, Scroll, Selection)
+
+A `Boolean` like `focused`, `isExpanded`, or `selected` driving a side effect *from a plain `if` in the composable body* is one of the most frequent footguns. The body runs on every recomposition, so the side effect fires repeatedly — and there's no cleanup hook for when the condition flips back to `false`.
+
+```kotlin
+// WRONG — preloadImages() runs on every recomposition while focused; no cancellation when focus is lost
+@Composable
+fun ProfileCard(profile: Profile, focused: Boolean) {
+    if (focused) {
+        preloadImages(profile.avatarUrls)  // side effect in composition body
+    }
+    /* ... */
+}
+
+// RIGHT — LaunchedEffect keyed on the boolean; cancels automatically when it flips
+@Composable
+fun ProfileCard(profile: Profile, focused: Boolean) {
+    LaunchedEffect(profile.id, focused) {
+        if (focused) preloadImages(profile.avatarUrls)
+    }
+    /* ... */
+}
+
+// RIGHT (more declarative) — observe via snapshotFlow if focused is derived from a State source
+@Composable
+fun ProfileCard(profile: Profile, interactionSource: InteractionSource) {
+    LaunchedEffect(profile.id, interactionSource) {
+        snapshotFlow { interactionSource.collectIsFocusedAsState().value }
+            .filter { it }
+            .collect { preloadImages(profile.avatarUrls) }
+    }
+    /* ... */
+}
+```
+
+The same shape applies to `if (isSelected) playSound()`, `if (isExpanded) loadDetails()`, or any "do work while X is true" pattern. The condition has to drive an *effect*, not a body branch.
+
+### `onSizeChanged` Writing State Read in Composition
+
+`onSizeChanged` fires after layout. Writing a `MutableState` from inside it that's then read in composition creates a back-writing feedback loop: layout fires the callback, the callback invalidates composition with the new size, composition lays out again, the callback fires again. See `state-management.md` → "Cross-Phase Back-Writing" for the full discussion and `Modifier.decorateMeasureConstraints` fix.
 
 ---
 

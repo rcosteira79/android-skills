@@ -52,6 +52,28 @@ fun ShimmerList() {
 
 **Rule:** Any value derived from `LocalConfiguration`, `LocalDensity`, or `LocalLayoutDirection` MUST include that configuration source in `remember`'s key parameters. Audit all `remember {}` calls that reference `screenHeightDp`, `screenWidthDp`, `fontScale`, or `densityDpi`.
 
+### Compose Multiplatform — `LocalConfiguration` Is Android-Only
+
+`LocalConfiguration` does not exist in `commonMain`. To derive layout dimensions in shared CMP code, read `LocalWindowInfo.current.containerSize` (an `IntSize` in pixels) and convert with `LocalDensity.current`:
+
+```kotlin
+// commonMain — works on Android, iOS, Desktop, Web
+@Composable
+fun ResponsiveShimmerList(itemHeightDp: Int = 80) {
+    val containerSize = LocalWindowInfo.current.containerSize  // IntSize in pixels
+    val density = LocalDensity.current
+    val screenHeightDp = with(density) { containerSize.height.toDp().value.toInt() }
+
+    val shimmerCount = remember(screenHeightDp) {
+        (screenHeightDp / itemHeightDp).coerceAtLeast(1)
+    }
+
+    LazyColumn { items(shimmerCount) { ShimmerItem() } }
+}
+```
+
+`LocalWindowInfo` is multiplatform from `compose.ui:ui` 1.6+ — the same crash pattern applies (rotate or resize the window without keying, the shimmer count goes stale), with the same fix shape (key on the derived value).
+
 ---
 
 ## 2. indexOf() Inside items {}
@@ -580,6 +602,10 @@ fun ChatScreen(viewModel: ChatViewModel) {
 ```
 
 `rememberSaveable` serializes to the `Bundle`, which has a ~1MB limit on Android. Using it inside list items for per-item state quickly exceeds this limit and causes `TransactionTooLargeException`.
+
+The mechanism: `rememberSaveable` writes to a `SaveableStateRegistry` provided through a `CompositionLocal`. At save time, the registry walks all registered savers and packs their values into a `Bundle`. On Android, that `Bundle` is round-tripped through binder for `onSaveInstanceState` — and binder enforces the ~1MB IPC transaction limit, which is where the crash comes from.
+
+**Compose Multiplatform:** `rememberSaveable` works in `commonMain` via the same `SaveableStateRegistry` mechanism, but the binder limit is Android-only. Desktop and iOS targets serialize to other storage (typically a file in the app's data directory), so a 5MB `Bundle` won't crash on Desktop — but the per-item rule still holds across all platforms because per-item saved state is the wrong shape regardless of the persistence mechanism: it scales linearly with list size, defeats item recycling, and pollutes saved state with values that should be derived or hoisted.
 
 ### Rule 4: snapshotFlow + distinctUntilChanged for Reactive Scroll
 

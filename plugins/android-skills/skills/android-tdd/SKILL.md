@@ -11,6 +11,8 @@ Extends `superpowers:test-driven-development` with Android-specific patterns.
 
 **REQUIRED BACKGROUND:** You MUST follow `superpowers:test-driven-development`. This skill adds Android context — it does not replace the Iron Law or RED-GREEN-REFACTOR cycle.
 
+**Greenfield setup:** This skill teaches the *practice* of writing tests once the stack is in place — TDD loop, fake-first strategy, three-tier model, semantics matchers. For *bootstrapping* the testing stack from scratch (DI for tests, JUnit/Robolectric/Roborazzi/Paparazzi selection, instrumented test runner configuration, Compose Preview Screenshot Testing, end-to-end with UI Automator, Jacoco coverage), see Google's official [`testing-setup`](https://github.com/android/skills/tree/main/testing/testing-setup) skill (`android skills list` to check for a local install; `android skills add testing-setup` otherwise). The two are complementary.
+
 ## Android's Three Testing Tiers
 
 Choose the lowest tier that can meaningfully test the behaviour:

@@ -112,6 +112,24 @@ fun createHttpClient(
 
 `expectSuccess = true` matches the try/catch error model used by the Repository pattern below. If you prefer to inspect status codes manually, set `expectSuccess = false` and apply that choice consistently across the project — never mix the two.
 
+| Setting | Behavior | Use when |
+|---|---|---|
+| `true` (used above) | Throws `ClientRequestException` / `ServerResponseException` on non-2xx | Pairing with `try/catch` at the repository boundary — matches the pattern in this skill |
+| `false` | Returns the response regardless of status | Inspecting `response.status` manually in a custom wrapper (see "Advanced: Sealed `ApiResult<T>`" below) |
+
+### Plugin install order
+
+Plugins execute in installation order for outgoing requests and reverse order for responses. The order that holds up across most projects:
+
+```
+ContentNegotiation → Auth → HttpRequestRetry → HttpTimeout → ContentEncoding
+```
+
+The two installs that interact in non-obvious ways:
+
+- **`HttpRequestRetry` before `HttpTimeout`** — retries should be able to catch timeout errors. Reversing this skips timeouts because `HttpTimeout` resolves the request as failed before the retry plugin sees the response.
+- **`Auth` plugin handles 401s independently from `HttpRequestRetry`** — let `Auth` do the bearer refresh dance; let `HttpRequestRetry` cover transient network failures and 5xx. Don't try to chain them around the same status code.
+
 ---
 
 ## Service Layer
@@ -199,6 +217,56 @@ sealed class DataError(message: String, cause: Throwable? = null) : Exception(me
 ```
 
 Catch specific Ktor exception types — `catch (e: Exception)` would swallow `CancellationException` and break structured concurrency. See `android-skills:kotlin-flows` for the full pattern.
+
+### Advanced: sealed `ApiResult<T>` with `expectSuccess = false`
+
+The `Result<T>` + `DataError` pattern above is the default. When error handling needs structured per-error-type data — distinct UI states for `Unauthorized`, `RateLimited`, `Forbidden`, `SerializationError`, `Timeout` — a sealed `ApiResult<T>` paired with `expectSuccess = false` and a `safeRequest` wrapper is the alternative shape:
+
+```kotlin
+sealed class ApiResult<out T> {
+    data class Success<T>(val data: T) : ApiResult<T>()
+    sealed class Failure : ApiResult<Nothing>() {
+        data class HttpError(val code: Int, val message: String, val serverMessage: String? = null) : Failure()
+        data class NetworkError(val message: String) : Failure()
+        data class SerializationError(val message: String) : Failure()
+        data class Timeout(val message: String) : Failure()
+        data class Unauthorized(val serverMessage: String? = null) : Failure()
+        data class Unknown(val cause: Throwable) : Failure()
+    }
+}
+
+suspend inline fun <reified T> HttpClient.safeRequest(
+    block: HttpRequestBuilder.() -> Unit,
+): ApiResult<T> = try {
+    val response = request { block() }
+    when (response.status.value) {
+        in 200..299 -> ApiResult.Success(response.body<T>())
+        401 -> ApiResult.Failure.Unauthorized()
+        in 400..499 -> ApiResult.Failure.HttpError(response.status.value, "Request failed")
+        in 500..599 -> ApiResult.Failure.HttpError(response.status.value, "Server error")
+        else -> ApiResult.Failure.HttpError(response.status.value, "Unexpected status")
+    }
+} catch (e: CancellationException) {
+    throw e  // never swallow — breaks structured concurrency
+} catch (e: HttpRequestTimeoutException) {
+    ApiResult.Failure.Timeout("Request timed out")
+} catch (e: IOException) {
+    ApiResult.Failure.NetworkError("No internet connection")
+} catch (e: SerializationException) {
+    ApiResult.Failure.SerializationError("Invalid response format")
+} catch (e: Exception) {
+    ApiResult.Failure.Unknown(e)
+}
+```
+
+Configure the client with `expectSuccess = false` when using this wrapper — the wrapper inspects `response.status.value` itself rather than relying on Ktor to throw.
+
+| Pattern | Pick when |
+|---|---|
+| `Result<T>` + `DataError` (default) | Three or four UI states are enough (`Loading`, `Success`, `Network error`, `Server error`); team prefers Kotlin stdlib types |
+| `ApiResult<T>` + `safeRequest` (advanced) | UI needs distinct surface for `Unauthorized`, `RateLimited`, `Forbidden`, etc.; team prefers exhaustive `when` matching at the ViewModel boundary |
+
+Pick one per project. Mixing both produces inconsistent error surfaces and confused reviewers.
 
 ---
 
@@ -345,6 +413,69 @@ fun `getUser maps 404 to DataError-Server`() = runTest {
 ```
 
 For multi-route tests, branch on `request.url.encodedPath` inside the `MockEngine` lambda. See `android-skills:android-tdd` for how Ktor fakes fit the three-tier test model.
+
+---
+
+## WebSockets and Server-Sent Events
+
+Real-time transports — pick based on direction and reconnection needs.
+
+| Criterion | SSE (`ktor-client-core`) | WebSockets (`ktor-client-websockets`) |
+|---|---|---|
+| Direction | Server → client only | Bidirectional |
+| Protocol | HTTP (standard) | WebSocket (protocol upgrade) |
+| Auto-reconnect | Built-in | Manual (caller writes the loop) |
+| Binary frames | Text only | Text and binary |
+| Typical use | Live feeds, notifications, progress, streaming AI tokens | Chat, gaming, real-time collaboration |
+
+Default to SSE when the client only consumes. Use WebSockets when the client also publishes.
+
+### WebSocket — typed messages
+
+```kotlin
+val client = HttpClient(engine) {
+    install(WebSockets) {
+        pingIntervalMillis = 30_000
+        contentConverter = KotlinxWebsocketSerializationConverter(Json)
+    }
+}
+
+client.webSocket("wss://api.example.com/ws") {
+    sendSerialized(SubscribeMessage(topic = "items"))
+    while (true) {
+        val message = receiveDeserialized<ServerMessage>()
+        // handle message
+    }
+}
+```
+
+`KotlinxWebsocketSerializationConverter` lifts `sendSerialized` / `receiveDeserialized` over the same `kotlinx.serialization` configuration as `ContentNegotiation`. Without it, the caller has to encode/decode `Frame.Text` manually.
+
+For external control (sending from outside the `webSocket {}` lambda), keep the session reference:
+
+```kotlin
+val session = client.webSocketSession("wss://api.example.com/ws")
+session.sendSerialized(Ping)
+val message = session.receiveDeserialized<Pong>()
+session.close()
+```
+
+### Server-Sent Events
+
+```kotlin
+val client = HttpClient(engine) {
+    install(SSE)
+}
+
+client.sse("https://api.example.com/events") {
+    incoming.collect { event ->
+        // event.event = "message" | "delta" | …
+        // event.data, event.id, event.retry
+    }
+}
+```
+
+The `incoming` flow is a `Flow<ServerSentEvent>`. Wrap collection in a `LaunchedEffect` or repository coroutine so cancellation propagates and the HTTP connection closes when the consumer goes away.
 
 ---
 

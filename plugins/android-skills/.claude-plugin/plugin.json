@@ -1,7 +1,7 @@
 {
   "name": "android-skills",
-  "description": "Android and KMP development skills for Claude Code — architecture, Compose, coroutines, flows, networking (Retrofit, Ktor), testing, debugging, Gradle, and Material Design 3",
-  "version": "4.2.0",
+  "description": "Android and KMP development skills for Claude Code — architecture, Compose, coroutines, flows, networking (Retrofit, Ktor), persistent storage (Room, DataStore), pagination, dependency injection (Hilt, Koin), testing, debugging, Gradle, and Material Design 3",
+  "version": "5.0.0",
   "author": {
     "name": "Ricardo Costeira"
   },
@@ -16,6 +16,11 @@
     "coroutines",
     "flows",
     "ktor",
+    "room",
+    "datastore",
+    "paging",
+    "koin",
+    "hilt",
     "material3",
     "jetpack",
     "gradle"

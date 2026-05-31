@@ -5,9 +5,9 @@ description: Use when designing Kotlin Multiplatform boundaries — choosing bet
 
 # Kotlin Multiplatform Boundary Design
 
-Designing the boundary between shared code and platform code is the central craft of KMP. Get it right and `commonMain` reads like product code that happens to compile everywhere. Get it wrong and `commonMain` is full of `Context`, `UIViewController`, and `actual` implementations that quietly grow domain logic.
+Designing the boundary between shared and platform code is the central craft of KMP: keep `commonMain` reading like product code, and push `Context`/`UIViewController`/`actual` mechanics behind small named boundaries before they grow domain logic. This skill covers boundary **shape** — `expect`/`actual` vs a common interface with platform bindings vs separate platform screens — and the granularity rules that keep all three from collapsing into a god object.
 
-This skill covers **boundary design**: when to reach for `expect`/`actual`, when to use a common interface with platform bindings, when to drop to separate platform screens, and the granularity rules that keep all three from collapsing into a god object.
+Use it when common code must reach a platform API (clipboard, share, haptics, biometrics, files, sensors, native SDKs, Compose interop) and there's no existing recipe. If you're picking a *mechanism* that has a recipe (Ktor, Coil 3, Navigation Compose), use the recipe instead.
 
 **Related skills:**
 - `android-skills:kmp-ktor` — Ktor client for network APIs (one concrete platform boundary done right).
@@ -25,21 +25,6 @@ Three rules govern every boundary decision in this skill:
 1. **Common code describes *what* the product needs; actuals describe *how* a platform delivers it.** `currentRegion()` belongs in common; `localeFromAndroidContext(context)` does not.
 2. **Split by capability, never one giant `Platform` object.** `Clipboard`, `ShareSheet`, `Haptics`, `Biometrics` are five interfaces, not one. Five small boundaries are independently testable, mockable, and replaceable.
 3. **An `actual` that knows product state or domain rules is a leak.** Translation only — if the actual is making decisions, move the decision back to common code.
-
----
-
-## When To Use This Skill
-
-Use this skill when common code needs to:
-
-- Reach a platform service: clipboard, share sheet, intents, deep links, haptics, biometrics, notifications.
-- Touch platform OS surfaces: files, paths, clocks, locale, network reachability, sensors, crypto, media, camera, maps.
-- Wrap a native SDK that only exists on one platform.
-- Embed native views, controllers, or platform widgets inside Compose Multiplatform.
-- Make a runtime decision that varies per platform (engine selection, capability detection).
-- Decide between `expect`/`actual`, a common interface bound per-platform, dependency injection, or splitting into separate platform screens.
-
-If you're picking the *mechanism* (HTTP client, image loader, navigation library) and there's an existing recipe (Ktor, Coil 3, Navigation Compose) — use the recipe. If you're picking the *boundary shape* for a platform call that doesn't have a recipe — use this skill.
 
 ---
 
@@ -80,9 +65,7 @@ The Android actual uses `Locale` APIs. The iOS actual uses Foundation. Callers k
 - The function name contains a platform mechanism (`fromAndroidIntent`, `toIosNSString`, `withCgImage`).
 - Adding a third platform would force every caller in `commonMain` to change.
 
-### Fix it before the actual is written
-
-If the API isn't semantic, the actual has nowhere to put its details — they leak into common code. Get the common signature right first; the actuals follow trivially.
+Get the common signature right first; the actuals follow trivially. If the API isn't semantic, the actual has nowhere to put its details — they leak into common code.
 
 ---
 
@@ -109,13 +92,24 @@ class AndroidShareSheet(private val activity: Activity) : ShareSheet {
 
 ### Activity-owned, not Context-owned
 
-The Android `ShareSheet` is explicitly `Activity`-owned. A generic `Context` would need `Intent.FLAG_ACTIVITY_NEW_TASK` to launch the chooser — and that flag is a smell: it hides the fact that this is a UI operation requiring a foreground task. The right design is "the platform binding holds an `Activity`," not "the actual silently launches into whatever task the OS picks."
+The Android `ShareSheet` is explicitly `Activity`-owned. A generic `Context` would need `Intent.FLAG_ACTIVITY_NEW_TASK` to launch the chooser — and that flag is a smell: it hides the fact that this is a UI operation requiring a foreground task. The right design is "the platform binding holds an `Activity`," not "the actual silently launches into whatever task the OS picks." This is the single most common Android boundary mistake: passing `applicationContext` (or `LocalContext.current`) into a class that actually needs an Activity, then papering over the lifecycle gap with `FLAG_ACTIVITY_NEW_TASK`.
 
-This is the single most common Android boundary mistake: passing `applicationContext` (or `LocalContext.current`) into a class that actually needs an Activity, then papering over the lifecycle gap with `FLAG_ACTIVITY_NEW_TASK`. The cost is invisible until you need to know whether `shareText` returned because the sheet opened or because the user finished.
+**How the Activity reaches the constructor.** You don't app-wide-inject an `Activity` — it's framework-created and lifecycle-bound. Construct the binding in an **activity scope** in the Android app module, where the current Activity is available:
+
+```kotlin
+// androidApp — Hilt, activity-scoped (Activity is a default binding in ActivityComponent)
+@Module
+@InstallIn(ActivityComponent::class)
+object ShareModule {
+    @Provides fun shareSheet(activity: Activity): ShareSheet = AndroidShareSheet(activity)
+}
+```
+
+Koin's equivalent is an activity-scoped definition (`scope` / `scoped`). `commonMain` only ever sees the `ShareSheet` interface — the `Activity` never leaves the app module. If a longer-lived (app-scoped) object needs the binding, don't capture the Activity directly; hold it behind a lifecycle-aware provider (set in `onResume`, cleared in `onPause`) so a destroyed Activity can't leak.
 
 ### Define what `suspend` means
 
-For platform UI actions, "the function returned" usually means **the action was launched**, not **the user completed it**. The share sheet opened — not "the user picked an app and tapped Send." Document this in the interface KDoc; otherwise callers will write incorrect retry/confirmation logic.
+For platform UI actions, "the function returned" usually means **the action was launched**, not **the user completed it**. Document this in the interface KDoc; otherwise callers will write incorrect retry/confirmation logic.
 
 ```kotlin
 interface ShareSheet {
@@ -150,7 +144,7 @@ class ShareUseCase(private val shareSheet: ShareSheet) {
 }
 ```
 
-If you find an `if`, a `when`, or a domain validation inside an actual, that logic belongs in `commonMain`.
+If you find an `if`, a `when`, or a domain validation inside an actual, that logic belongs in `commonMain` — where it's testable with a fake `ShareSheet` instead of a real platform runtime.
 
 ---
 
@@ -181,11 +175,11 @@ class FakeClipboard : Clipboard {
 |------|-----|
 | Pure function or constant | `expect fun` / `expect val` |
 | Object the product injects, fakes in tests, or selects at runtime | Common `interface` + platform binding |
-| Native type alias for interop only (`expect typealias`) | `expect typealias` |
+| Native type alias for interop only | `expect typealias` |
 | Lifecycle ownership (Activity, ViewController) | Interface; bind in platform DI layer |
 | Multiple implementations on the same platform (real vs offline vs debug) | Interface |
 
-`expect class` exists, but it's the boundary shape most often used incorrectly. Prefer interfaces unless there's no DI in the project.
+`expect class` exists, but it's the boundary shape most often used incorrectly. Prefer interfaces unless there's no DI in the project. A common test then runs on the JVM with a fake — no Android/iOS runtime required.
 
 ---
 
@@ -211,8 +205,6 @@ Problems with the monolith:
 - Capabilities have different lifecycle owners (Activity for share, Application for notifications, secure context for biometrics) — one class can't honour all of them.
 - Adding a platform forces every method to have an actual, even ones that don't apply.
 
-### Split by capability
-
 ```kotlin
 // RIGHT — one interface per capability
 interface Clipboard { suspend fun setText(text: String) }
@@ -222,8 +214,6 @@ interface Biometrics { suspend fun authenticate(prompt: BiometricPrompt): Biomet
 interface Notifications { suspend fun show(notification: AppNotification) }
 ```
 
-Five small interfaces, five independent platform bindings, five independently fakeable test surfaces. This is the granularity rule that Banes captures as *"never one Platform object — split by capability."*
-
 ### How small is too small?
 
 If two capabilities are *always* used together and never independently, they can share an interface. `LocaleProvider` exposing `currentRegion()`, `currentLanguage()`, and `currentCalendar()` is fine — they're one platform service viewed three ways. But the moment one method has a different lifecycle owner, different fake, or different testability concern from another, split them.
@@ -232,17 +222,7 @@ If two capabilities are *always* used together and never independently, they can
 
 ## Source-Set Hierarchy Strategy
 
-KMP source sets form a tree. Default tree:
-
-```
-commonMain
-├── androidMain
-├── iosMain
-├── desktopMain (jvmMain on KMP without Compose)
-└── wasmJsMain
-```
-
-But shared `actual` implementations between non-Android targets often belong in intermediate source sets — `skikoMain` (everything that renders via Skia: desktop + iOS + web) or `appleMain` (iOS + macOS + tvOS). Use them when two platforms can genuinely share an `actual`:
+KMP source sets form a tree. Shared `actual` implementations between non-Android targets often belong in intermediate source sets — `skikoMain` (everything that renders via Skia: desktop + iOS + web) or `appleMain` (iOS + macOS + tvOS). Use them when two platforms can genuinely share an `actual`:
 
 ```
 commonMain
@@ -265,8 +245,6 @@ Add one only when **at least two** platforms can share an actual:
 
 - "I might share this later" — add the intermediate set when there's a second platform implementation, not before.
 - "Almost the same on iOS and desktop" — `almost` is the cue to keep two actuals. Sharing an actual that has subtle per-platform branches is worse than two clear actuals.
-
-### Source-set wiring example
 
 ```kotlin
 // build.gradle.kts (KMP module)
@@ -294,9 +272,7 @@ kotlin {
 
 ## KMP Library Plugin Constraints (AGP 9)
 
-AGP 9 replaces `com.android.library` with `com.android.kotlin.multiplatform.library` for the Android side of a KMP module, and rejects the `com.android.application` + `kotlin.multiplatform` combination outright. The new plugin enforces a single-variant architecture and removes several Android-library features that previously bled into boundary design.
-
-These constraints are *structural* — they shape what can live in shared code vs. what must move to a platform app module. Knowing them up front saves a class of "this should be easy" mistakes where you design a `commonMain` API around a feature that no longer exists in a KMP library module.
+AGP 9 replaces `com.android.library` with `com.android.kotlin.multiplatform.library` for the Android side of a KMP module, and rejects the `com.android.application` + `kotlin.multiplatform` combination outright. The new plugin enforces a single-variant architecture and removes several Android-library features that previously bled into boundary design. These constraints are *structural* — they shape what can live in shared code vs. what must move to a platform app module.
 
 - **`BuildConfig` is unavailable.** Compile-time constants come from [BuildKonfig](https://github.com/yshrsmz/BuildKonfig) / [gradle-buildconfig-plugin](https://github.com/gmazzo/gradle-buildconfig-plugin), or — more often — from DI (`AppConfiguration` interface bound per-platform). Don't design `commonMain` APIs that assume `BuildConfig.X` exists.
 - **No build variants.** Variant-specific dependencies, resources, and signing belong in the app module, not the shared library. A `debug` vs `release` decision can still surface as a runtime configuration value injected into common code — just not as a build-variant split inside the KMP module.
@@ -308,8 +284,6 @@ These constraints are *structural* — they shape what can live in shared code v
 
 ### Where does this code live?
 
-The "shared library or app module?" decision becomes clear-cut for several categories that used to be ambiguous in monolithic `composeApp` modules:
-
 | Concern | Pre-AGP-9 (monolithic) | AGP 9 KMP library |
 |---|---|---|
 | `MainActivity`, Application class, launcher manifest | `androidMain` of shared module | Separate `androidApp` module |
@@ -319,41 +293,35 @@ The "shared library or app module?" decision becomes clear-cut for several categ
 | NDK / JNI native code | `androidMain` (any module) | Separate `com.android.library`, wrapped behind a common interface |
 | App-level resources (launcher icon, theme) | Shared module's `androidMain/res` | `androidApp` module |
 
-If you're starting a new KMP project on AGP 9, design with these constraints from day one — they're not migration steps, they're the new shape of a KMP library. If you're migrating an existing project, see JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) skill for the full migration mechanics (Paths A/B/C, DSL migration, plugin compatibility, Gradle property defaults).
+If you're starting a new KMP project on AGP 9, design with these constraints from day one — they're not migration steps, they're the new shape of a KMP library. If you're migrating an existing project, see JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) skill for the full migration mechanics.
 
 ---
 
 ## Compose-Specific Boundary Rules
 
-Compose Multiplatform UI built on top of these boundaries follows three additional rules.
-
 ### 1. Keep platform-specific composables at leaf nodes
 
 ```kotlin
-// commonMain — layout is shared
+// commonMain — layout is shared; only the map widget is platform-specific
 @Composable
 fun MapScreen(state: MapState, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Header(state.title)
-        // ↓ platform-specific leaf — UIKitView on iOS, AndroidView on Android
-        NativeMapView(coords = state.center, modifier = Modifier.weight(1f))
+        NativeMapView(coords = state.center, modifier = Modifier.weight(1f))  // UIKitView on iOS, AndroidView on Android
         Controls(onZoomIn = state.onZoomIn, onZoomOut = state.onZoomOut)
     }
 }
 
-// commonMain
-@Composable
-expect fun NativeMapView(coords: Coords, modifier: Modifier = Modifier)
+@Composable expect fun NativeMapView(coords: Coords, modifier: Modifier = Modifier)
 ```
 
-The layout, header, and controls are shared. Only the map widget — which genuinely is a native view — is `expect`. Don't expect the whole screen.
+Don't `expect` the whole screen — duplicating the layout per platform means every UI change happens twice and Compose Preview can't render it.
 
 ### 2. Pass `Modifier` through every expected composable that emits UI
 
 ```kotlin
 // WRONG — caller can't size or place the leaf
 @Composable expect fun NativeMapView(coords: Coords)
-
 // RIGHT — leaf participates in the shared layout
 @Composable expect fun NativeMapView(coords: Coords, modifier: Modifier = Modifier)
 ```
@@ -362,32 +330,38 @@ See `compose/references/modifiers.md` for the broader modifier-as-API-contract r
 
 ### 3. Effect discipline inside actuals
 
-`LaunchedEffect`, `DisposableEffect`, `rememberUpdatedState`, and stable keys apply *inside* actual composables exactly as they would in common Compose code. An actual that calls `UIKitView { ... }` or `AndroidView { ... }` and forgets to clean up listeners on dispose has the same bug as any other Compose code that does that.
+`LaunchedEffect`, `DisposableEffect`, `rememberUpdatedState`, and stable keys apply *inside* actual composables exactly as in common Compose code. An actual that wraps a native view and forgets to clean up on dispose has the same bug as any other Compose code.
 
 ```kotlin
 // iosMain
 @Composable
 actual fun NativeMapView(coords: Coords, modifier: Modifier) {
     val view = remember { MKMapView() }
-
-    LaunchedEffect(coords) {
-        view.setCenterCoordinate(coords.toCLLocation(), animated = true)
-    }
-
+    LaunchedEffect(coords) { view.setCenterCoordinate(coords.toCLLocation(), animated = true) }
     DisposableEffect(view) {
         val delegate = MapDelegate()
         view.delegate = delegate
-        onDispose {
-            view.delegate = null
-        }
+        onDispose { view.delegate = null }
     }
-
-    UIKitView(
-        factory = { view },
-        modifier = modifier,
-    )
+    UIKitView(factory = { view }, modifier = modifier)
 }
 ```
+
+---
+
+## Swift Interop at the Boundary
+
+Code exposed to iOS — whether through `expect`/`actual`, an interface implementation, or a `ComposeUIViewController` factory — ends up on the Kotlin↔Swift bridge, which has its own naming, type-width, and exhaustiveness rules that catch projects out at integration time.
+
+See `references/ios-interop.md` for:
+- Kotlin → Swift naming (`fileNameKt.foo()`, `object.shared`, companion access)
+- Type bridging (`Int` is 32-bit Kotlin / `Int32` Swift, `Unit` becomes `KotlinUnit`, `List<T>` is copied not shared)
+- `suspend` → `async` and `Flow` → `AsyncSequence` via SKIE
+- Sealed-class exhaustiveness with SKIE `onEnum(of:)`
+- Embedding SwiftUI in Compose via `UIHostingController` + `UIKitViewController`
+- iOS API design rules (`@HiddenFromObjC`, `isStatic`, batch-don't-iterate)
+
+Load it when authoring the iOS-side actual or the SwiftUI bridge, not for every KMP boundary decision.
 
 ---
 
@@ -401,215 +375,9 @@ actual fun NativeMapView(coords: Coords, modifier: Modifier) {
 | One huge `Platform` `expect` object | Split by capability: `Clipboard`, `ShareSheet`, `Haptics`, etc. |
 | `expect class` for something the project needs to fake | Use a common `interface` bound per-platform |
 | Android actual uses `applicationContext` + `FLAG_ACTIVITY_NEW_TASK` for UI launch | Make the binding Activity-owned |
-| `suspend` actual returns "when the sheet was launched" with no doc — caller treats it as completion | Document the `suspend` contract in the interface |
+| `suspend` actual returns "when launched" with no doc — caller treats it as completion | Document the `suspend` contract in the interface |
 | Platform UI leaks high in the composable tree | Push the platform composable to a leaf; share the rest |
 | Intermediate source set (`skikoMain`) created with only one platform under it | Don't introduce hierarchy until a second platform shares the actual |
 | Native view embedded with no `DisposableEffect` cleanup | Add `onDispose { view.delegate = null }` (or equivalent) |
-
----
-
-## Red Flags During Review
-
-- **Common code imports `android.*` or `platform.*`.** That's a leak — the import is the proof.
-- **An actual contains an `if`/`when` that depends on product state.** Domain logic in the actual; move it back to common.
-- **A platform API name appears in a common function name.** `currentRegionFromAndroidLocale` is the giveaway.
-- **Adding a third platform would force changes in `commonMain`.** The boundary isn't semantic — it leaks the existing two platforms.
-- **Tests need an Android/iOS runtime to verify common business behaviour.** The boundary should be fakeable in common tests.
-- **One `Platform` god object holding more than two capabilities.** Split.
-- **`expect class` for anything that needs DI, lifecycle, or fakes.** Switch to an interface.
-- **Android actual uses `applicationContext` for a UI operation.** Activity-owned, not Application-owned.
-- **`suspend` actual contract is undocumented.** What does "returned" mean — launched, presented, completed?
-
----
-
-## RIGHT vs WRONG Patterns
-
-### Platform UI service — boundary shape
-
-```kotlin
-// WRONG — expect class + applicationContext + FLAG_ACTIVITY_NEW_TASK
-// commonMain
-expect class ShareSheet() {
-    suspend fun shareText(text: String)
-}
-
-// androidMain
-actual class ShareSheet {
-    actual suspend fun shareText(text: String) {
-        val intent = Intent(Intent.ACTION_SEND)
-            .setType("text/plain")
-            .putExtra(Intent.EXTRA_TEXT, text)
-        applicationContext.startActivity(
-            Intent.createChooser(intent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-    }
-}
-
-// RIGHT — interface + Activity-owned binding + explicit suspend contract
-// commonMain
-interface ShareSheet {
-    /** Launches the share sheet. Returns when the sheet is presented, not when the user completes the share. */
-    suspend fun shareText(text: String)
-}
-
-// androidMain
-class AndroidShareSheet(private val activity: Activity) : ShareSheet {
-    override suspend fun shareText(text: String) {
-        val intent = Intent(Intent.ACTION_SEND)
-            .setType("text/plain")
-            .putExtra(Intent.EXTRA_TEXT, text)
-        activity.startActivity(Intent.createChooser(intent, null))
-    }
-}
-
-// iosMain
-class IosShareSheet : ShareSheet {
-    override suspend fun shareText(text: String) {
-        val activityVc = UIActivityViewController(
-            activityItems = listOf(text),
-            applicationActivities = null,
-        )
-        UIApplication.sharedApplication.keyWindow?.rootViewController
-            ?.presentViewController(activityVc, animated = true, completion = null)
-    }
-}
-```
-
-**WRONG because** `applicationContext` cannot launch a chooser without `FLAG_ACTIVITY_NEW_TASK`, which papers over the fact that share is a UI operation requiring a foreground task. The interface is also not fakeable for tests, and the suspend contract is undocumented — callers will assume it means "user finished sharing."
-
-### Granularity
-
-```kotlin
-// WRONG — god object
-expect class Platform {
-    fun copyToClipboard(text: String)
-    suspend fun shareText(text: String)
-    fun vibrate(ms: Long)
-    suspend fun authenticate(): Boolean
-}
-
-// RIGHT — one interface per capability
-interface Clipboard { fun setText(text: String) }
-interface ShareSheet { suspend fun shareText(text: String) }
-interface Haptics { fun perform(feedback: HapticFeedback) }
-interface Biometrics { suspend fun authenticate(prompt: BiometricPrompt): BiometricResult }
-```
-
-**WRONG because** the monolith forces every test fake to implement every method, couples capabilities with different lifecycle owners, and produces a boundary that grows linearly with every new platform feature.
-
-### Domain logic in actuals
-
-```kotlin
-// WRONG — Android actual decides what's shareable
-class AndroidShareSheet(private val activity: Activity) : ShareSheet {
-    override suspend fun shareText(text: String) {
-        if (text.isBlank()) return
-        if (text.length > 5000) return
-        if (text.contains("@debug")) return
-        activity.startActivity(...)
-    }
-}
-
-// RIGHT — domain rules in common; actual translates
-class ShareUseCase(
-    private val shareSheet: ShareSheet,
-    private val policy: SharePolicy,
-) {
-    suspend operator fun invoke(text: String): ShareResult {
-        when (val verdict = policy.evaluate(text)) {
-            is SharePolicy.Verdict.Allowed -> {
-                shareSheet.shareText(text)
-                return ShareResult.Launched
-            }
-            is SharePolicy.Verdict.Blocked -> return ShareResult.Blocked(verdict.reason)
-        }
-    }
-}
-```
-
-**WRONG because** every platform actual would duplicate the same rules, the rules would drift, and a test of `ShareUseCase` would need a real Android runtime to verify behaviour that's pure logic. Domain rules belong in `commonMain` where they're testable with a fake `ShareSheet`.
-
-### Expect class vs interface for testable services
-
-```kotlin
-// WRONG — expect class; test on JVM needs an Android-or-iOS runtime to instantiate
-expect class Clipboard() {
-    suspend fun setText(text: String)
-}
-
-@Test
-fun `copy button writes URL to clipboard`() = runTest {
-    val clipboard = Clipboard()  // explodes on JVM — no actual for jvmTest
-    val viewModel = ShareViewModel(clipboard)
-    viewModel.onCopyClicked("https://example.com")
-    // can't assert anything — clipboard has no inspection API
-}
-
-// RIGHT — interface; common test uses a fake
-interface Clipboard { suspend fun setText(text: String) }
-
-class FakeClipboard : Clipboard {
-    val writes = mutableListOf<String>()
-    override suspend fun setText(text: String) { writes += text }
-}
-
-@Test
-fun `copy button writes URL to clipboard`() = runTest {
-    val clipboard = FakeClipboard()
-    val viewModel = ShareViewModel(clipboard)
-    viewModel.onCopyClicked("https://example.com")
-    assertEquals(listOf("https://example.com"), clipboard.writes)
-}
-```
-
-**WRONG because** `expect class` requires a real platform actual to exist at the test site, and the resulting platform clipboard usually has no inspection API. An interface is fakeable in common tests with no platform runtime, and the fake exposes exactly the inspection the test needs.
-
-### Compose leaf positioning
-
-```kotlin
-// WRONG — entire screen is expect; layout duplicated per platform
-// commonMain
-@Composable expect fun MapScreen(state: MapState)
-
-// androidMain
-@Composable actual fun MapScreen(state: MapState) {
-    Column { Header(state.title); AndroidView({ MapView(it) }); Controls(...) }
-}
-
-// iosMain
-@Composable actual fun MapScreen(state: MapState) {
-    Column { Header(state.title); UIKitView({ MKMapView() }); Controls(...) }
-}
-
-// RIGHT — common layout, platform leaf
-// commonMain
-@Composable
-fun MapScreen(state: MapState, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Header(state.title)
-        NativeMapView(coords = state.center, modifier = Modifier.weight(1f))
-        Controls(state.onZoomIn, state.onZoomOut)
-    }
-}
-
-@Composable expect fun NativeMapView(coords: Coords, modifier: Modifier = Modifier)
-```
-
-**WRONG because** the layout is identical and the only real platform difference is the map widget. Duplicating the layout means every UI change happens twice, every spacing tweak happens twice, and Compose Preview can't render the screen at all.
-
----
-
-## Checklist
-
-- [ ] Common API is semantic — function name and signature don't mention any platform mechanism
-- [ ] No Android/iOS types in `commonMain` signatures (`Context`, `UIViewController`, etc.)
-- [ ] Boundary granularity: one interface per capability, never one `Platform` god object
-- [ ] `expect`/`actual` only for pure functions, values, typealiases, or genuine leaf composables
-- [ ] Interfaces with DI for anything that needs fakes, lifecycle, or runtime selection
-- [ ] Android bindings hold an `Activity` (not `applicationContext`) when launching UI
-- [ ] `suspend` contract in interface KDoc explains what "returned" means
-- [ ] No domain rules, `if`s, or `when`s inside actuals — actuals translate only
-- [ ] Intermediate source sets (`skikoMain`, `appleMain`) only when ≥2 platforms share the actual
-- [ ] Native views embedded with `DisposableEffect` cleanup
-- [ ] Compose `expect` composables accept `modifier: Modifier = Modifier`
-- [ ] Common tests run on JVM without needing Android/iOS runtime
+| `commonMain` test needs an Android/iOS runtime to verify business behaviour | The boundary should be fakeable in common tests |
+| Designing a `commonMain` API around `BuildConfig` in an AGP-9 KMP library | Use `BuildKonfig` or inject an `AppConfiguration` |
