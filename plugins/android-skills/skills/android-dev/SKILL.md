@@ -51,6 +51,7 @@ Open a sibling ViewModel in the same feature module — or `Grep` the feature fo
 - **Creating a new `SharedFlow` or `Channel`** → check whether an existing effects stream already carries this kind of signal.
 - **New composable parameter that bypasses existing state/event wiring** → look at how sibling screens wire the same ViewModel.
 - **Justifying a direct approach with phrases like "natural extension of X," "the ViewModel delegates to Y," or "this is architecturally sound" — *without having first opened a sibling ViewModel***. Rationalization dressing up a shortcut is itself a signal to stop and audit, not a signal you're on the right track.
+- **Adding a ViewModel delegate, a repository wrapper, or a use-case pass-through** → mentally delete it first. If the surrounding code gets no simpler with it gone, it's pass-through indirection — inline it. Such a layer earns its keep only when removing it would scatter the same logic across several call sites. (The deliberate single-implementation repository interface that marks a clean-architecture layer boundary is *not* pass-through indirection — that one stays; it's a seam for testing and dependency inversion, not a wrapper.)
 
 ### Rule
 
