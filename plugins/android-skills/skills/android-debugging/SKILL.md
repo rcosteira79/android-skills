@@ -65,6 +65,8 @@ adb pull /data/local/tmp/heap.hprof ./heap.hprof
 
 For bottleneck investigation across CPU, graphics, I/O, IPC, memory, or power — beyond what Logcat and ANR traces show — capture a Perfetto trace and query it with SQL.
 
+**Measure before you fix.** For performance regressions, logs usually mislead — capture a *baseline* measurement before changing anything, then bisect against it. A trace tells you where time goes; only a comparison against a known-good baseline tells you what actually regressed.
+
 ```bash
 # Capture a trace (system-level, all categories)
 adb shell perfetto -c - --txt -o /data/misc/perfetto-traces/trace.pftrace \
@@ -187,18 +189,20 @@ adb shell run-as com.example.app ls /data/data/com.example.app/
 For issues spanning multiple layers (e.g. Repository → ViewModel → UI):
 
 ```kotlin
-// Temporarily instrument each boundary
+// Temporarily instrument each boundary with a UNIQUE run-specific tag
+// (pick a fresh suffix per session, e.g. DEBUG-a4f2) so the SAME tag both
+// filters logcat at runtime and greps cleanly at teardown.
 class UserRepository(...) {
     suspend fun fetchUser(id: String): User {
-        Log.d("DEBUG_LAYER", "Repository: fetching user $id")
+        Log.d("DEBUG-a4f2", "Repository: fetching user $id")
         val result = api.getUser(id)
-        Log.d("DEBUG_LAYER", "Repository: received ${result}")
+        Log.d("DEBUG-a4f2", "Repository: received ${result}")
         return result
     }
 }
 ```
 
-Run once to identify **which layer** produces the bad value. Then investigate that layer in isolation before proposing a fix.
+Run once to identify **which layer** produces the bad value. Filter the run at runtime with `adb logcat -s "DEBUG-a4f2"`, then tear the instrumentation back out with a single `grep -rl "DEBUG-a4f2"`. A unique per-session tag is what makes both one-liners work — a shared tag like `DEBUG_LAYER` collides across sessions and leaves orphaned logs behind. Then investigate the implicated layer in isolation before proposing a fix.
 
 ## Red Flags
 
@@ -207,3 +211,4 @@ Run once to identify **which layer** produces the bad value. Then investigate th
 - Adding `Thread.sleep()` to "fix" an ANR or race condition
 - Resolving a dependency conflict by adding `exclude` without understanding why the duplicate exists
 - Fixing a Compose bug by wrapping in `key()` without understanding what triggers recomposition
+- Leaving temporary instrumentation in the tree — tag every debug log with a unique per-session prefix (e.g. `DEBUG-a4f2`) so cleanup is one `grep`, and remove them all before declaring the fix done
