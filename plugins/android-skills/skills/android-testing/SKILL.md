@@ -1,15 +1,19 @@
 ---
 name: android-testing
-description: Use when writing, fixing, or refactoring Android/KMP code in Kotlin — supplements superpowers:test-driven-development with Android's three-tier test model, fake-first strategy, coroutine testing, and Compose UI testing.
+description: Use when writing, fixing, or refactoring Android/KMP code in Kotlin — Android's three-tier test model, fake-first strategy, coroutine testing, and Compose UI testing, on a test-first (RED-GREEN-REFACTOR) foundation.
 ---
 
 # Android Testing
 
 ## Overview
 
-Extends `superpowers:test-driven-development` with Android-specific patterns.
+Android-specific testing patterns on a test-first foundation.
 
-**REQUIRED BACKGROUND:** You MUST follow `superpowers:test-driven-development`. This skill adds Android context — it does not replace the Iron Law or RED-GREEN-REFACTOR cycle.
+**Test-first foundation:**
+- **No production code without a failing test first.** Write the test, watch it fail (RED), write the minimal code to pass (GREEN), then refactor. A behaviour you never watched fail isn't proven.
+- **A bug isn't fixed until a test that was red *because of the bug* is green.**
+
+This skill adds Android context on top of that cycle; it doesn't replace it. *Optional:* if you run a dedicated test-first discipline skill (e.g. `superpowers:test-driven-development` or `ace:test-driven-development`), this layers on top of it — but it requires none.
 
 **Greenfield setup:** This skill teaches the *practice* of writing tests once the stack is in place — TDD loop, fake-first strategy, three-tier model, semantics matchers. For *bootstrapping* the testing stack from scratch (DI for tests, JUnit/Robolectric/Roborazzi/Paparazzi selection, instrumented test runner configuration, Compose Preview Screenshot Testing, end-to-end with UI Automator, Jacoco coverage), see Google's official [`testing-setup`](https://github.com/android/skills/tree/main/testing/testing-setup) skill (`android skills list` to check for a local install; `android skills add testing-setup` otherwise). The two are complementary.
 

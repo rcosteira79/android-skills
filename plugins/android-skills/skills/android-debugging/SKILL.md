@@ -1,18 +1,22 @@
 ---
 name: android-debugging
 description: >
-  Use when debugging Android or KMP issues — supplements superpowers:systematic-debugging
-  with Android-specific techniques covering Logcat, ADB, ANR traces, R8 stack trace decoding,
-  memory leaks, Gradle build failures, and Compose recomposition bugs.
+  Use when debugging Android or KMP issues — Android-specific techniques covering Logcat, ADB,
+  ANR traces, R8 stack trace decoding, memory leaks, Gradle build failures, and Compose
+  recomposition bugs, on a root-cause-first foundation.
 ---
 
 # Android Debugging
 
 ## Overview
 
-Extends `superpowers:systematic-debugging` with Android-specific evidence-gathering and investigation techniques.
+Android-specific evidence-gathering and investigation techniques on a root-cause-first foundation.
 
-**REQUIRED BACKGROUND:** You MUST follow `superpowers:systematic-debugging`. Complete Phase 1 (root cause investigation) before attempting any fix. This skill provides Android-specific tools for each phase.
+**Root-cause-first foundation:**
+- **No fix before the root cause is found.** Investigate first — reproduce, gather evidence (observed values, not assumed), trace the cause. Patching a symptom you don't understand creates two bugs.
+- **Three failed guesses ⇒ stop and question the architecture** rather than guessing again.
+
+The Android-specific tools below serve that investigation. *Optional:* if you run a dedicated debugging-discipline skill (e.g. `superpowers:systematic-debugging` or `ace:systematic-debugging`), this layers on top of it — but it requires none.
 
 ## Evidence-Gathering by Problem Type
 
