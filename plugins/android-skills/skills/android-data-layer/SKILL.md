@@ -7,7 +7,7 @@ description: Use when implementing the data layer in Android — Repository patt
 
 The data layer coordinates data from multiple sources. Its public API to the rest of the app is repository interfaces; its internal implementation details (DAOs, API services, DTOs) never leak upward.
 
-**Related skills:** See `android-skills:android-retrofit` for Retrofit service setup, OkHttp configuration, and Hilt module wiring. See `android-skills:android-dev` for how the data layer fits into the overall architecture and error propagation model.
+**Related skills:** See `android-skills:android-retrofit` for Retrofit service setup, OkHttp configuration, and Hilt module wiring. See `android-skills:android-dev` for how the data layer fits into the overall app architecture. This skill is the canonical home for the error-propagation model below.
 
 ## Repository Pattern
 
@@ -46,7 +46,12 @@ sealed class DataError(message: String, cause: Throwable? = null) : Exception(me
 }
 ```
 
-**With a domain layer:** When use cases exist, the repository throws `DataError` exceptions instead of returning `Result<T>`. Use cases catch `DataError` and return `Result<T>` with domain-specific error models. See `android-skills:android-dev` Error Handling section for the full layered propagation model.
+**Layered error propagation.** The boundary moves outward by one layer when a domain layer exists:
+
+1. **Data sources** throw platform/library exceptions (`IOException`, `HttpException`, `SQLiteException`).
+2. **Repository** is the error boundary — catch those and remap to a single sealed `DataError` hierarchy; never let raw platform types leak past it. *Without a domain layer (simple MVVM):* the repository returns `Result<T>` directly, mapping platform exceptions to domain error models itself, and the ViewModel handles `Result<T>` without knowing about platform exceptions.
+3. **Use cases** (when present) are the `Result` boundary — the repository instead *throws* `DataError`, and the use case catches it and returns `Result<T>` with a domain-specific error model. Use cases never catch platform exception types.
+4. **ViewModels** handle `Result<T>` and map it to UI state (explicit loading / success / error).
 
 Bind the interface to its implementation in a Hilt module:
 
