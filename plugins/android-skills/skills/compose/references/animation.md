@@ -103,14 +103,14 @@ Button(onClick = { count++ }) { Text("Increment") }
 AnimatedContent(
     targetState = count,
     transitionSpec = {
-        slideInVertically(initialOffsetY = { it }) with slideOutVertically(targetOffsetY = { -it })
+        slideInVertically(initialOffsetY = { it }) togetherWith slideOutVertically(targetOffsetY = { -it })
     }
 ) { target ->
     Text("$target")
 }
 ```
 
-Use `with` to specify exit and enter together. This runs exits and entries simultaneously.
+Use `togetherWith` to specify exit and enter together (the older `with` infix was deprecated for `togetherWith`). This runs exits and entries simultaneously.
 
 ### Sequencing transitions
 
@@ -118,7 +118,7 @@ Use `with` to specify exit and enter together. This runs exits and entries simul
 AnimatedContent(
     targetState = count,
     transitionSpec = {
-        slideInVertically(initialOffsetY = { it }) with slideOutVertically(targetOffsetY = { -it }) using SizeTransform(clip = false)
+        slideInVertically(initialOffsetY = { it }) togetherWith slideOutVertically(targetOffsetY = { -it }) using SizeTransform(clip = false)
     }
 ) { target ->
     Text(

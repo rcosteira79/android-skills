@@ -61,11 +61,7 @@ abstract fun bindNewsRepository(impl: OfflineFirstNewsRepository): NewsRepositor
 
 ### Entity
 
-**Ask the user** which naming convention they prefer for cached/database models:
-- `Entity` suffix (e.g. `ArticleEntity`) — Room convention, ties the name to the persistence layer
-- `Cached` prefix (e.g. `CachedArticle`) — abstracts the cache mechanism, useful if the storage backend might change
-
-If the project already has a convention, match it. If no preference, default to `Entity` suffix.
+Default to the `Entity` suffix (e.g. `ArticleEntity`) — the Room convention. If the project already uses a different convention (e.g. a `Cached` prefix like `CachedArticle` to abstract the storage mechanism), match it instead.
 
 ```kotlin
 @Entity(tableName = "articles")

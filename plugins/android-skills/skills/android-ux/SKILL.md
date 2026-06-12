@@ -111,7 +111,7 @@ Never hardcode top/bottom padding to approximate system bar heights — use `Win
 ## Spacing & Layout
 
 - Use an **8dp base grid** for all spacing, margins, and padding — multiples of 4dp are acceptable for micro-spacing
-- Minimum body text size: **14sp** (prefer 16sp for reading-heavy screens) — smaller sizes trigger iOS auto-zoom and hurt Android readability
+- Body text: prefer **≥14sp** for sustained reading (16sp on reading-heavy screens). This is a readability guideline for body copy, not a hard floor — M3 `labelSmall`/`labelMedium` at 11–12sp are correct for captions, chips, and overlines.
 - Avoid horizontal scroll — it breaks expected mobile scrolling conventions
 - Design **mobile-first**, then scale up to tablet/foldable
 

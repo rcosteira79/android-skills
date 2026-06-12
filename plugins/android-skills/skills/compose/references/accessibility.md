@@ -306,7 +306,7 @@ fun LiveMessage(message: String, modifier: Modifier = Modifier) {
     Text(
         text = message,
         modifier = modifier.semantics {
-            liveRegion = LiveRegionMode.Assertive  // Polite or Assertive
+            liveRegion = LiveRegionMode.Polite  // Polite for status updates; Assertive only for critical alerts (errors)
         }
     )
 }
@@ -316,7 +316,7 @@ var status by remember { mutableStateOf("Loading...") }
 
 LaunchedEffect(Unit) {
     delay(2000)
-    status = "Done loading"  // Screen reader announces immediately
+    status = "Done loading"  // Polite: announced after the current utterance finishes
 }
 
 LiveMessage(message = status)

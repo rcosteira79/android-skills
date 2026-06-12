@@ -591,19 +591,22 @@ fun ProfileScreen() {
 }
 ```
 
-### Don't: Use @Preview from the wrong package in commonMain
+### Don't: Use the androidx @Preview package in commonMain
 
 ```kotlin
-// Will not compile in commonMain
-import androidx.compose.ui.tooling.preview.Preview  // Android-only package!
+// Will NOT compile in commonMain — this package is Android-only:
+import androidx.compose.ui.tooling.preview.Preview
+
+// Use the multiplatform Preview instead — it DOES work in commonMain
+// (add the compose.components.uiToolingPreview dependency):
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Preview
 @Composable
 fun MyPreview() { /* ... */ }
 
-// CMP preview support varies by IDE and target
-// Use Android Studio previews in androidMain only
-// For Desktop, run the app directly (hot reload is fast)
+// Android Studio renders androidMain previews; IntelliJ/Fleet render commonMain
+// previews. For Desktop you can also just run the app (hot reload is fast).
 ```
 
 ### Don't: Use R.* in shared code

@@ -9,7 +9,7 @@ Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-
 
 **Related skills:** `android-skills:android-data-layer` for the non-paged repository pattern, `android-skills:android-retrofit` / `android-skills:kmp-ktor` for the network layer that feeds `PagingSource`, and `android-skills:compose` for `LazyColumn` integration.
 
-Paging 3 streams paged data from a `PagingSource` (and optionally a `RemoteMediator`) through a `Pager` into `LazyPagingItems`. For non-paged repositories, defer to `android-skills:android-data-layer`. KMP support is Android-only as of `androidx.paging` 3.5.0 — multiplatform Paging is on the roadmap; verify status at https://developer.android.com/jetpack/androidx/releases/paging.
+Paging 3 streams paged data from a `PagingSource` (and optionally a `RemoteMediator`) through a `Pager` into `LazyPagingItems`. For non-paged repositories, defer to `android-skills:android-data-layer`. As of `androidx.paging` 3.5.0, `paging-common`, `paging-compose`, and `paging-testing` are Kotlin Multiplatform (Android, JVM, iOS, Native, JS/Wasm); only `paging-runtime` (and `-guava`/`-rxjava`) stay Android-only. Verify current targets at https://developer.android.com/jetpack/androidx/releases/paging.
 
 ---
 

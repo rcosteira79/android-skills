@@ -119,6 +119,6 @@ https://cs.android.com/search?q=ClassName&ss=androidx
 
 - **Trusting training data line numbers** — both trees change frequently. Always fetch current source.
 - **Using WebFetch on cs.android.com** — JS SPA, results won't be in raw HTML.
-- **Using `master` branch on Gitiles** — prefer `refs/heads/main`; use a tag like `android-14.0.0_r74` for specific API levels.
-- **Using Gitiles for AndroidX** — AndroidX is not in `android.googlesource.com`; use GitHub raw URLs.
+- **Picking the wrong Gitiles ref** — use `refs/heads/main` (the active default branch), or a tag like `android-14.0.0_r74` for a specific API level.
+- **Defaulting to Gitiles for AndroidX** — AndroidX *is* mirrored on `android.googlesource.com/platform/frameworks/support` (`androidx-main`), but prefer GitHub `raw.githubusercontent.com` / `gh api`; the GitHub layout is the canonical, better-documented path for `androidx.*`.
 - **Using WebFetch on github.com** — use `raw.githubusercontent.com` for file content, `gh api` for listings.
