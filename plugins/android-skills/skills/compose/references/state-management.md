@@ -70,7 +70,7 @@ fun StatefulCounter() {
 }
 ```
 
-**Push state as high as needed, but no higher.** See `compose/references/view-composition.md` for the composable-shape side (stateful wrapper vs stateless content).
+**Push state as high as needed, but no higher.** See `compose/references/view-composition.md` for the slot / content-API authoring side.
 
 ### Where State Belongs
 
