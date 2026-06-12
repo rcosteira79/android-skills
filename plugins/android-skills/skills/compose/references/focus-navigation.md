@@ -232,7 +232,7 @@ Dialog(onDismissRequest = onDismiss) {
 
 ## TV and androidx.tv.material3
 
-Prefer `androidx.tv:tv-material` / `tv-foundation` over regular Material 3 — the TV components ship focus-aware visuals (rings, scale, elevation) and integrate with the leanback navigation model. Gotchas:
+For Android TV, prefer the TV-tuned components in `androidx.tv:tv-material` (package `androidx.tv.material3`) over regular Material 3 — they ship focus-aware visuals (rings, scale, elevation) and integrate with the leanback navigation model. For lists, use **Compose Foundation's `LazyColumn`/`LazyRow`**, which support D-pad focus on TV — do **not** use `androidx.tv:tv-foundation`'s `TvLazyColumn`/`TvLazyRow`/`TvLazyListState`: those lazy-list APIs are deprecated and have been removed from `androidx.tv.foundation` upstream. Gotchas:
 
 - **Touch targets don't apply** — D-pad jumps don't need 48dp; visual focus indication (ring/scale/glow) matters more.
 - **No hover on TV** — `hover ≠ focus`.
