@@ -433,102 +433,11 @@ LazyColumn {
 6. `LazyColumn`/`LazyRow` are for large or unbounded lists; use `Column`/`Row` for small fixed lists
 7. Never use indices as keys; list mutations will corrupt item state
 
-### Production Crash Patterns
+### Production crash patterns
 
-#### indexOf() Inside items {} — O(n^2) and Crashes
-
-```kotlin
-// BAD: O(n^2) total, returns -1 on recreated objects → IndexOutOfBoundsException
-items(list.size) { index ->
-    val item = list[index]
-    val position = list.indexOf(item) // -1 if object was recreated!
-}
-
-// GOOD: use items() with key for stable identity
-items(list, key = { it.id }) { item ->
-    ItemRow(item)
-}
-```
-
-Root cause: `indexOf()` uses `equals()`. If list items are recreated (new object instances without proper `equals()` implementation), `indexOf()` returns -1.
-
-#### Duplicate LazyColumn Keys
-
-Backend sends items without unique IDs, or WebSocket reconnects deliver duplicates → `IllegalArgumentException: Key X was already used`.
-
-```kotlin
-// BAD: backend IDs may not be unique
-items(messages, key = { it.id }) { msg -> ... }
-
-// GOOD: add dedup index for safety
-items(messages, key = { "${it.id}_${it.dedupIndex}" }) { msg -> ... }
-```
-
-The `dedupIndex` pattern: Add a field to the data class that is excluded from `equals()`/`hashCode()` but included in the LazyColumn key:
-
-```kotlin
-data class ChatMessage(
-    val id: String,
-    val text: String,
-    val timestamp: Long
-) {
-    // NOT in data class constructor — excluded from equals/hashCode
-    var dedupIndex: Int = 0
-}
-
-// When processing messages from backend:
-fun deduplicateKeys(messages: List<ChatMessage>): List<ChatMessage> {
-    val seen = mutableMapOf<String, Int>()
-    return messages.map { msg ->
-        val count = seen.getOrPut(msg.id) { 0 }
-        seen[msg.id] = count + 1
-        msg.also { it.dedupIndex = count }
-    }
-}
-```
-
-#### derivedStateOf Driving Collection Size → IOOB
-
-```kotlin
-// BAD: derived count can be stale when items{} reads
-val itemCount by remember { derivedStateOf { filterItems(allItems).size } }
-LazyColumn {
-    items(itemCount) { index ->
-        val item = filterItems(allItems)[index] // IOOB if allItems changed!
-    }
-}
-
-// GOOD: derive the full filtered list, not just the count
-val filteredItems by remember { derivedStateOf { filterItems(allItems) } }
-LazyColumn {
-    items(filteredItems, key = { it.id }) { item ->
-        ItemRow(item)
-    }
-}
-```
-
-Rule: `derivedStateOf` for scroll direction, visibility, form validation — **never for item counts that drive LazyList rendering**.
+LazyList crash patterns — `indexOf()` in an item factory (O(n^2) + `IndexOutOfBoundsException`), duplicate/colliding keys with the dedup-index fix, and `derivedStateOf` driving a collection count — live in `compose/references/production-crash-playbook.md` (sections 2, 4, 5, 8). Not duplicated here.
 
 ### LazyList Hardening
-
-#### Multi-Field Keys with Collision Prefixes
-
-When a LazyList mixes items from different data sources, IDs can collide:
-
-```kotlin
-// BAD: id=42 in both liveItems and archivedItems → crash
-LazyColumn {
-    items(liveItems, key = { it.id }) { ... }
-    items(archivedItems, key = { it.id }) { ... }
-}
-
-// GOOD: prefix keys by source
-LazyColumn {
-    items(liveItems, key = { "live_${it.id}" }) { ... }
-    items(archivedItems, key = { "archived_${it.id}" }) { ... }
-    items(pinnedItems, key = { "pinned_${it.id}" }) { ... }
-}
-```
 
 #### items() with key Preferred Over itemsIndexed()
 
