@@ -156,7 +156,7 @@ Prefer `StandardTestDispatcher` over `UnconfinedTestDispatcher` — it queues co
 
 Use `createComposeRule()` for component tests, `createAndroidComposeRule()` for integration tests needing Activity.
 
-**Prefer v2 entry points for new code.** Import from `androidx.compose.ui.test.junit4.v2.createComposeRule` (or `androidx.compose.ui.test.v2.runComposeUiTest`) — they use `StandardTestDispatcher` and match `kotlinx.coroutines.test.runTest` semantics. The v1 imports (`androidx.compose.ui.test.junit4.createComposeRule`, `androidx.compose.ui.test.runComposeUiTest`) use `UnconfinedTestDispatcher` and are deprecated `WARNING`. After migrating, a `LaunchedEffect` that previously ran eagerly may need an explicit `mainClock.advanceTimeBy(0)` or `runCurrent()` to drain queued work.
+**`createComposeRule()` / `runComposeUiTest {}` now default to `StandardTestDispatcher`** (matching `kotlinx.coroutines.test.runTest` semantics) — there is no separate "v2" package. The behaviour is gated by `androidx.compose.ui.test.ComposeUiTestFlags.isStandardTestDispatcherSupportEnabled`, which defaults to `true`, so the regular `androidx.compose.ui.test.junit4.createComposeRule` / `androidx.compose.ui.test.runComposeUiTest` already use it. To pin a specific scheduler, pass it through: `createComposeRule(effectContext = StandardTestDispatcher())`. Under this default, a `LaunchedEffect` that previously ran eagerly (the old `UnconfinedTestDispatcher` behaviour) may need an explicit `mainClock.advanceTimeBy(0)` or `runCurrent()` to drain queued work; set `ComposeUiTestFlags.isStandardTestDispatcherSupportEnabled = false` only to temporarily restore the legacy behaviour.
 
 ### Semantics first, `testTag` as fallback
 

@@ -105,19 +105,38 @@ fun UserDetailRoute(userId: String) {
 
 ## Scopes
 
-Bind a dependency to a lifecycle narrower than singleton — state shared across a small set of screens. On Android, `activityRetainedScope { }` survives configuration changes.
+Bind a dependency to a lifecycle narrower than singleton — state shared across a small set of screens.
+
+**Survives configuration changes (the common case) → `activityRetainedScope`.** The scope is backed by the Activity's retained `ViewModel`, so it lives across rotation and closes when the Activity is finally destroyed. Declare with the `activityRetainedScope { }` DSL (or `@ActivityRetainedScope` in Koin Annotations) and access it via `AndroidScopeComponent` — do **not** hand-roll `createScope`/`close` for this case:
+
+```kotlin
+// module
+val checkoutModule = module {
+    activityRetainedScope {                 // retained across config changes
+        scoped { CheckoutCart() }
+        scoped { CheckoutPricing(get()) }
+    }
+}
+
+// Activity — scope retained across rotation, closed on real finish
+class CheckoutActivity : AppCompatActivity(), AndroidScopeComponent {
+    override val scope: Scope by activityRetainedScope()
+    private val cart: CheckoutCart by inject()
+}
+```
+
+**Custom lifetime not tied to an Activity** (e.g. a multi-step flow keyed by an order id) → declare a `scope<T>` and own its lifecycle explicitly:
 
 ```kotlin
 val checkoutModule = module {
     scope<CheckoutFlow> {
         scoped { CheckoutCart() }
-        scoped { CheckoutPricing(get()) }
-        viewModel { CheckoutViewModel(get(), get()) }
+        viewModel { CheckoutViewModel(get()) }
     }
 }
 val scope = getKoin().createScope<CheckoutFlow>("checkout-$orderId")
 val cart: CheckoutCart = scope.get()
-scope.close()   // when the flow ends
+scope.close()   // you close it when the flow ends
 ```
 
 ## Nav 3 Integration

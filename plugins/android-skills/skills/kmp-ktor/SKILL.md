@@ -125,6 +125,24 @@ Plugins execute in installation order for outgoing requests and reverse order fo
 ContentNegotiation → Auth → HttpRequestRetry → HttpTimeout → ContentEncoding
 ```
 
+Install them in that order — `HttpRequestRetry` **before** `HttpTimeout`:
+
+```kotlin
+HttpClient(engine) {
+    install(ContentNegotiation) { json(json) }
+    install(Auth) { bearer { /* loadTokens / refreshTokens */ } }
+    install(HttpRequestRetry) {               // BEFORE HttpTimeout
+        retryOnServerErrors(maxRetries = 3)
+        exponentialDelay()
+    }
+    install(HttpTimeout) {                     // AFTER HttpRequestRetry
+        requestTimeoutMillis = 30_000
+        connectTimeoutMillis = 15_000
+        socketTimeoutMillis = 15_000
+    }
+}
+```
+
 The two installs that interact in non-obvious ways:
 
 - **`HttpRequestRetry` before `HttpTimeout`** — retries should be able to catch timeout errors. Reversing this skips timeouts because `HttpTimeout` resolves the request as failed before the retry plugin sees the response.
