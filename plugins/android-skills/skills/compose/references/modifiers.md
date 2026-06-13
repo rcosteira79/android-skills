@@ -462,36 +462,7 @@ Source: `compose/ui/ui/src/commonMain/kotlin/androidx/compose/ui/graphics/Graphi
 
 ## Modifier.semantics — Accessibility
 
-Semantics describe the meaning of UI elements for screen readers and accessibility tests.
-
-```kotlin
-// Add semantic label
-Button(onClick = { }) {
-    Icon(Icons.Default.Add, contentDescription = null)
-    Text("Add item")
-}
-
-// Custom semantic properties
-Box(
-    Modifier
-        .size(100.dp)
-        .semantics {
-            contentDescription = "Custom box"
-            onClick(label = "Activate") { true }
-        }
-) { }
-
-// Do: always provide contentDescription for images
-Image(
-    painter = painterResource(id = R.drawable.icon),
-    contentDescription = "User avatar"
-)
-
-// Don't: forget contentDescription (screen readers won't announce it)
-Image(painter = painterResource(id = R.drawable.icon), contentDescription = null) // Wrong
-```
-
-Source: `compose/ui/ui/src/commonMain/kotlin/androidx/compose/ui/semantics/Semantics.kt`
+`Modifier.semantics { … }` describes UI to screen readers and a11y tests. The basics — `contentDescription`, `role`, `onClick(label)`, `stateDescription`, `clearAndSetSemantics`, `mergeDescendants` — are standard and default-correct, so they aren't re-taught here. For the non-default parts (traversal order via `traversalIndex` / `isTraversalGroup`, and live-region mode `Polite` vs `Assertive`) see `compose/references/accessibility.md`; for the M3-compliance accessibility checklist, `android-skills:android-ux`.
 
 ## Modifier.testTag — UI Testing
 
