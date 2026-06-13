@@ -163,30 +163,7 @@ Wrong state or unexpected re-renders:
 
 **Note:** Since Compose compiler 2.0+ (Kotlin 2.0+), strong skipping mode is enabled by default and the compiler automatically memoizes lambdas that capture stable references. Manual `remember {{ }}` wrapping is no longer necessary in most cases. If you see excessive recomposition from lambdas, check whether the captured references are unstable (mutable collections, non-data classes) rather than wrapping in `remember`.
 
-## ADB Quick Reference
-
-```bash
-# List connected devices
-adb devices
-
-# Install APK
-adb install -r app-debug.apk
-
-# Launch activity
-adb shell am start -n com.example.app/.MainActivity
-
-# Clear app data
-adb shell pm clear com.example.app
-
-# Take screenshot (for visual diffing; for UI state bugs, prefer `android layout` — see Runtime UI Inspection)
-adb exec-out screencap -p > screen.png
-
-# View running processes
-adb shell ps | grep com.example
-
-# Check app's SharedPreferences / databases
-adb shell run-as com.example.app ls /data/data/com.example.app/
-```
+(Standard `adb` commands — `devices`, `install -r`, `am start`, `pm clear`, `ps`, `run-as … ls /data/data/<pkg>/` — are default knowledge; for visual-state bugs prefer `android layout` over `screencap` as noted above.)
 
 ## Multi-Component Evidence Template
 
