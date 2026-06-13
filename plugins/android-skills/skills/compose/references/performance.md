@@ -462,22 +462,4 @@ Canvas(Modifier.fillMaxWidth().height(200.dp)) {
 
 ## Compose Multiplatform Performance
 
-Tooling availability differs by platform:
-
-| Tool | Android | Desktop | iOS | Web |
-|------|---------|---------|-----|-----|
-| Baseline Profiles / Macrobenchmark / Layout Inspector | Yes | No | No | No |
-| Profiling | Android Studio | JMH | Instruments | Browser DevTools |
-| R8/ProGuard | Yes | ProGuard separately | N/A (Kotlin/Native) | N/A |
-
-iOS: Kotlin/Native GC differs from ART; enable ProMotion via `CADisableMinimumFrameDurationOnPhone = true` in Info.plist. Web/WASM: the whole canvas redraws per frame (no DOM partial repaint), and bundle size drives initial load.
-
----
-
-## Resources
-
-- Compiler reports / stability: https://developer.android.com/develop/ui/compose/performance/stability-report
-- Measurement: https://developer.android.com/develop/ui/compose/performance/measurement
-- Baseline profiles: https://developer.android.com/develop/ui/compose/performance/baseline-profiles
-- Strong skipping: https://developer.android.com/develop/ui/compose/performance/stability/strongskipping
-- Stability configuration: https://developer.android.com/develop/ui/compose/performance/stability/fix#configuration-file
+The stability/phase model and `derivedStateOf`/provider-lambda fixes are identical across platforms (shared composable logic). What differs is tooling and the rendering backend: Baseline Profiles / Macrobenchmark / Layout Inspector are **Android-only** (profile with JMH on Desktop, Instruments on iOS, browser DevTools on Web). iOS/Web rendering gotchas (ProMotion 120Hz Info.plist, Metal clip cost, synchronous image decode, Web full-canvas redraw + bundle size) live in `compose/references/platform-specifics.md`.

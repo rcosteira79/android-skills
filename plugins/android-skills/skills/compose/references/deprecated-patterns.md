@@ -1,346 +1,45 @@
 # Deprecated Patterns & API Migrations in Jetpack Compose
 
-This guide covers major API changes and deprecations in Compose's evolution. Each section shows the old pattern → new approach with migration notes.
+A strong model doesn't reliably track *what's been deprecated* — it'll happily write a retired Accompanist API or an old overload. This is the canonical list of old → current Compose APIs.
 
----
+## Accompanist retirement (everything folded into AndroidX — remove the deps)
 
-## String-Based Routes → Type-Safe `@Serializable` Routes
+| Old (Accompanist / pre-built) | Current | Since |
+|---|---|---|
+| `rememberSystemUiController().setSystemBarsColor(...)` | `enableEdgeToEdge()` in `Activity.onCreate` before `setContent` | Compose 1.7 |
+| `accompanist-pager` `HorizontalPager(count = n, …)` | Foundation `HorizontalPager(state = rememberPagerState(pageCount = { n }))` | foundation 1.6 |
+| `accompanist-swiperefresh` `SwipeRefresh(...)` | M3 `PullToRefreshBox(isRefreshing, onRefresh) { … }` | material3 1.2 |
+| `accompanist-flowlayout` `FlowRow(mainAxisSize = SizeMode.Expand)` | Foundation `FlowRow` / `FlowColumn` (standard modifiers, no `SizeMode`) | foundation 1.6 |
 
-**Old (pre-2.8):**
-```kotlin
-NavHost(navController, startDestination = "home") {
-    composable("home") { HomeScreen() }
-    composable("details/{id}") { backStackEntry ->
-        DetailsScreen(id = backStackEntry.arguments?.getString("id"))
-    }
-}
-```
+## Other current-vs-deprecated APIs
 
-**New (Navigation 2.8+):**
-```kotlin
-@Serializable data class Home
-@Serializable data class Details(val id: String)
+- **`Modifier.animateItemPlacement()` → `Modifier.animateItem()`** (Compose 1.7) — for LazyList add/remove/move animation. The old one still works but is superseded.
 
-NavHost(navController, startDestination = Home) {
-    composable<Home> { HomeScreen() }
-    composable<Details> { backStackEntry ->
-        val args: Details = backStackEntry.toRoute()
-        DetailsScreen(id = args.id)
-    }
-}
-```
+- **`Modifier.composed { }` → `Modifier.Node` / `ModifierNodeElement`** — `composed {}` creates a composition scope and captures composition locals on every use; the Node API is allocation-light. Prefer Node for new custom modifiers (Compose 1.8); benchmark before migrating existing ones.
+  ```kotlin
+  class MyElement(val value: Int) : ModifierNodeElement<MyNode>() {
+      override fun create() = MyNode(value)
+      override fun update(node: MyNode) { node.value = value }
+  }
+  private class MyNode(var value: Int) : Modifier.Node
+  fun Modifier.myModifier(value: Int) = this then MyElement(value)
+  ```
 
-**Migration notes:** Type-safe routes eliminate string typos and runtime crashes. Requires `kotlinx-serialization` plugin and `navigation-compose:2.8.0+`. Encode complex objects using custom serializers.
+- **`@ExperimentalMaterial3Api` graduated** (Material3 1.3): `DatePicker`, `TimePicker`, `ExposedDropdownMenuBox`, and `SearchBar` are stable — drop the `@OptIn`.
 
----
+- **`LinearProgressIndicator(progress = 0.5f)` → `progress = { 0.5f }`** — the raw-`Float` M3 overload is deprecated; the lambda defers the read so an `Animatable` / `State<Float>` can drive it without recomposing the parent every frame. Same for `CircularProgressIndicator`.
 
-## `accompanist-systemuicontroller` → `enableEdgeToEdge()`
+- **`DropdownMenuItem("text", onClick)` → slot form** — the positional-`String` overload is deprecated; the current API uses composable slots, matching the rest of M3:
+  ```kotlin
+  DropdownMenuItem(text = { Text("Profile") }, onClick = { … }, leadingIcon = { Icon(Icons.Default.Person, null) })
+  ```
 
-**Old:**
-```kotlin
-val systemUiController = rememberSystemUiController()
-systemUiController.setSystemBarsColor(
-    color = Color.Transparent,
-    darkIcons = false
-)
-```
+- **API 35+ edge-to-edge is the default** — on Android 15+, content draws behind the system bars by default; `enableEdgeToEdge()` manages bar colors and `WindowInsets.safeDrawing` handles notch-aware layouts. Manual `Modifier.systemBarsPadding()` is superseded.
 
-**New (Compose 1.7+):**
-```kotlin
-enableEdgeToEdge()
-// In Activity.onCreate() before setContent {}
-```
+## Also superseded — but covered in detail in their own references
 
-**Migration notes:** Built-in since Compose 1.7. Automatically handles status bar, navigation bar, and IME behind content. Remove `accompanist-systemuicontroller` dependency entirely.
-
----
-
-## `accompanist-pager` → `HorizontalPager`/`VerticalPager`
-
-**Old:**
-```kotlin
-val pagerState = rememberPagerState()
-HorizontalPager(count = items.size, state = pagerState) { page ->
-    PageContent(items[page])
-}
-```
-
-**New (Foundation):**
-```kotlin
-val pagerState = rememberPagerState(pageCount = { items.size })
-HorizontalPager(state = pagerState) { page ->
-    PageContent(items[page])
-}
-```
-
-**Migration notes:** Native Pager in `foundation:1.6+` replaces accompanist. Removes external dependency. State initialization slightly different; pass lambda for dynamic page counts.
-
----
-
-## `accompanist-swiperefresh` → `PullToRefreshBox`
-
-**Old:**
-```kotlin
-SwipeRefresh(state = rememberSwipeRefreshState(isRefreshing), onRefresh = { load() }) {
-    LazyColumn { items(data) { item -> ItemRow(item) } }
-}
-```
-
-**New (Material3):**
-```kotlin
-PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = { load() }) {
-    LazyColumn { items(data) { item -> ItemRow(item) } }
-}
-```
-
-**Migration notes:** `PullToRefreshBox` in `material3:1.2+` is the official replacement. Cleaner API. Remove `accompanist-swiperefresh` dependency.
-
----
-
-## `accompanist-flowlayout` → `FlowRow`/`FlowColumn`
-
-**Old:**
-```kotlin
-FlowRow(mainAxisSize = SizeMode.Expand) {
-    items.forEach { item -> Chip(text = item) }
-}
-```
-
-**New (Foundation):**
-```kotlin
-FlowRow(modifier = Modifier.fillMaxWidth()) {
-    items.forEach { item -> Chip(text = item) }
-}
-```
-
-**Migration notes:** FlowRow/FlowColumn in `foundation:1.6+`. API simplified; use standard modifiers instead of `SizeMode`. Better performance and less memory overhead.
-
----
-
-## `LazyColumn { animateItemPlacement() }` → `LazyColumn { animateItem() }`
-
-**Old:**
-```kotlin
-LazyColumn {
-    items(items, key = { it.id }) { item ->
-        ItemRow(item.name, Modifier.animateItemPlacement())
-    }
-}
-```
-
-**New:**
-```kotlin
-LazyColumn {
-    items(items, key = { it.id }) { item ->
-        ItemRow(item.name, Modifier.animateItem())
-    }
-}
-```
-
-**Migration notes:** `animateItem()` is the modern API (Compose 1.7+). Returns animation state for finer control. `animateItemPlacement()` still works but is superseded.
-
----
-
-## `Modifier.composed` Pattern → `Modifier.Node` API
-
-**Old:**
-```kotlin
-fun Modifier.myModifier(value: Int) = composed {
-    val state = remember { mutableStateOf(value) }
-    Modifier.fillMaxWidth().padding(8.dp)
-}
-```
-
-**New:**
-```kotlin
-fun Modifier.myModifier(value: Int) = this.then(
-    Modifier
-        .fillMaxWidth()
-        .padding(8.dp)
-)
-// Or for complex state:
-class MyModifierNode(val value: Int) : ModifierNodeElement<MyNodeImpl>() {
-    override fun create() = MyNodeImpl(value)
-    override fun update(node: MyNodeImpl) { node.value = value }
-}
-private class MyNodeImpl(var value: Int) : Modifier.Node
-```
-
-**Migration notes:** `composed {}` incurs overhead; avoid if no `remember` calls needed. For stateful modifiers, prefer `ModifierNode` API (Compose 1.8+). Benchmark before migrating existing code.
-
----
-
-## Primitive State Optimization: `mutableStateOf(0)` → `mutableIntStateOf(0)`
-
-**Old:**
-```kotlin
-var count by remember { mutableStateOf(0) }
-var temperature by remember { mutableStateOf(37.5f) }
-```
-
-**New:**
-```kotlin
-var count by remember { mutableIntStateOf(0) }
-var temperature by remember { mutableFloatStateOf(37.5f) }
-```
-
-**Migration notes:** Primitive-specific functions (`mutableIntStateOf`, `mutableFloatStateOf`, `mutableLongStateOf`) avoid boxing. Negligible performance impact in UI code but best practice since Compose 1.4+.
-
----
-
-## `collectAsState()` → `collectAsStateWithLifecycle()`
-
-**Old:**
-```kotlin
-val state by viewModel.uiState.collectAsState()
-```
-
-**New:**
-```kotlin
-val state by viewModel.uiState.collectAsStateWithLifecycle()
-```
-
-**Migration notes:** `collectAsStateWithLifecycle()` (Compose 1.6+) respects lifecycle—automatically stops collecting when activity is paused. Prevents memory leaks and redundant work. Requires `androidx.lifecycle:lifecycle-runtime-compose`.
-
----
-
-## `@ExperimentalMaterial3Api` Graduation
-
-**Old:**
-```kotlin
-@OptIn(ExperimentalMaterial3Api::class)
-fun MyScreen() {
-    DatePicker(state = rememberDatePickerState())
-}
-```
-
-**New (Compose 1.8+, Material3 1.3+):**
-```kotlin
-fun MyScreen() {
-    DatePicker(state = rememberDatePickerState())
-}
-```
-
-**Migration notes:** DatePicker, TimePicker, ExposedDropdownMenuBox, and SearchBar graduated to stable in Material3 1.3+. Remove `@OptIn` annotations. APIs are stable—safe for production use.
-
----
-
-## `Scaffold` Padding Enforcement
-
-**Old (problematic):**
-```kotlin
-Scaffold(topBar = { TopAppBar() }) {
-    LazyColumn { items(data) { item -> ItemRow(item) } }
-}
-```
-
-**New (required since 1.6+):**
-```kotlin
-Scaffold(topBar = { TopAppBar() }) { innerPadding ->
-    LazyColumn(modifier = Modifier.padding(innerPadding)) {
-        items(data) { item -> ItemRow(item) }
-    }
-}
-```
-
-**Migration notes:** Must use `innerPadding` parameter since Compose 1.6. Ignoring it causes content overlap under system bars. The compiler enforces this now—old pattern won't compile.
-
----
-
-## Material 2 → Material 3 Migration
-
-**Old (Material):**
-```kotlin
-Button(onClick = { }) { Text("Click") }
-TextField(value = text, onValueChange = { text = it })
-Surface(color = MaterialTheme.colors.primary) { /* */ }
-```
-
-**New (Material3):**
-```kotlin
-Button(onClick = { }) { Text("Click") }  // Same signature
-TextField(value = text, onValueChange = { text = it })  // Same signature
-Surface(color = MaterialTheme.colorScheme.primary) { /* */ }
-```
-
-**Migration notes:** Most Composables are API-compatible. Main changes: `colors` → `colorScheme`, new shape system, updated ripple defaults. Use Compose BOM to align Material3 versions.
-
----
-
-## `WindowInsets` & Edge-to-Edge
-
-**Old:**
-```kotlin
-Surface(modifier = Modifier.systemBarsPadding()) { /* */ }
-```
-
-**New (API 35+ default edge-to-edge):**
-```kotlin
-Surface(modifier = Modifier.padding(WindowInsets.systemBars.asPaddingValues())) { /* */ }
-// Or use enableEdgeToEdge() in Activity—handles automatically
-```
-
-**Migration notes:** Edge-to-edge is default on Android 15+. System bar colors are managed by `enableEdgeToEdge()`. Use `WindowInsets.safeDrawing` for notch-aware layouts. Deprecate manual `systemBarsPadding()` calls.
-
----
-
-## `ObservableState` Pattern Changes
-
-**Old:**
-```kotlin
-@Composable
-fun observe(state: ObservableState): State<T> = produceState(state.value) {
-    state.onChange { value = it }
-}
-```
-
-**New:**
-```kotlin
-@Composable
-fun <T> ObservableState<T>.asState(): State<T> = produceState(this.value) {
-    snapshotFlow { value }.collect { value = it }
-}
-```
-
-**Migration notes:** `snapshotFlow {}` is preferred over direct listeners (Compose 1.6+). Integrates better with Compose's snapshot system. Use `distinctUntilChanged()` to avoid redundant recompositions.
-
----
-
-## `LinearProgressIndicator(progress = Float)` → Lambda Overload
-
-**Old:**
-```kotlin
-LinearProgressIndicator(progress = 0.5f)
-CircularProgressIndicator(progress = 0.5f)
-```
-
-**New:**
-```kotlin
-LinearProgressIndicator(progress = { 0.5f })
-CircularProgressIndicator(progress = { 0.5f })
-```
-
-**Migration notes:** The raw `Float` overload of `LinearProgressIndicator` / `CircularProgressIndicator` in Material 3 is deprecated in favor of a lambda-form `progress: () -> Float`. The lambda overload defers the progress read so it can be driven by an `Animatable` or a `State<Float>` without forcing recomposition of the parent every frame. Replace with the lambda form; the call site is almost identical.
-
----
-
-## `DropdownMenuItem` Positional Args → Slot-Based Overload
-
-**Old (positional):**
-```kotlin
-DropdownMenuItem(
-    "Profile",
-    onClick = { navigate(Profile) },
-)
-```
-
-**New (slot-based):**
-```kotlin
-DropdownMenuItem(
-    text = { Text("Profile") },
-    onClick = { navigate(Profile) },
-    leadingIcon = { Icon(Icons.Default.Person, null) },
-)
-```
-
-**Migration notes:** The pre-Material 3 `DropdownMenuItem(text: String, onClick: () -> Unit, ...)` overload is deprecated. The current API uses composable slots for `text`, `leadingIcon`, and `trailingIcon` — consistent with the rest of M3 (`Button`, `ListItem`, `Card`). The slot form is more flexible (you can place a `Row` or a typography-styled `Text` in the slot) and aligns with the M3 component contract.
+- **String routes → type-safe `@Serializable` routes** (`composable<Route> { it.toRoute<Route>() }`, navigation-compose 2.8+) — see `compose/references/navigation.md`.
+- **`collectAsState()` → `collectAsStateWithLifecycle()`** *on Android* (lifecycle-aware; stops collecting in the background). Android-only — `collectAsState()` remains correct in CMP `commonMain` (see `multiplatform.md`).
+- **`mutableStateOf(0)` → `mutableIntStateOf(0)`** (and `mutableFloatStateOf` / `mutableLongStateOf`) — avoids boxing; see `state-management.md`.
+- **`Scaffold { }` → `Scaffold { innerPadding -> … }`** — applying `innerPadding` has been compiler-enforced since 1.6 (the old form won't compile).
+- **Material 2 → Material 3** — mostly API-compatible; `MaterialTheme.colors` → `.colorScheme`, the new shape system, updated ripple defaults. Align versions via the Compose BOM.
