@@ -1,6 +1,6 @@
 # Screen Structure in Jetpack Compose
 
-Screen-level structure — the architectural layer above individual composables. For composable naming / slots / extraction, see `compose/references/view-composition.md`; for M3 UX (touch targets, foldable postures, canonical layouts, M3 compliance), see `android-skills:android-ux`.
+Screen-level structure — the architectural layer above individual composables. For slot / content-API authoring, see `compose/references/view-composition.md`; for M3 UX (touch targets, foldable postures, canonical layouts, M3 compliance), see `android-skills:android-ux`.
 
 A strong model already structures screens correctly by default: a public screen composable that integrates the ViewModel (`collectAsStateWithLifecycle`, `LaunchedEffect` for the initial load) above a stateless content composable receiving state + callbacks; `Scaffold` with its `innerPadding` applied; `WindowSizeClass` / `NavigationSuiteScaffold` for adaptive layouts. This reference keeps the two things it under-does.
 
