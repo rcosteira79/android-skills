@@ -1,6 +1,6 @@
 # Lists and Scrolling in Jetpack Compose
 
-A strong model already produces correct lazy lists by default: `LazyColumn` / `LazyRow` (compose only visible items), the `item` / `items` / `itemsIndexed` DSL, `key = { it.id }` for stable identity (never the index), `contentType` for multi-type layout reuse, `rememberLazyListState` + `animateScrollToItem`, grids (`GridCells.Fixed` / `Adaptive`), `LazyVerticalStaggeredGrid`, `HorizontalPager`, `stickyHeader`, and `derivedStateOf` for scroll-derived flags. This reference keeps the performance traps and hardening details it gets wrong.
+This reference covers the performance traps and hardening details of lazy lists, not the basics of `LazyColumn` / `LazyRow`, the `items` DSL, keys, or grids.
 
 ## The `indexOf()`-in-item-factory O(n²) trap
 
@@ -25,7 +25,7 @@ items(items, key = { it.id }) { item -> ItemRow(item, byId[activeId] === item) }
 
 ## Keys: never build a new object in the key lambda
 
-A stable-id key is default knowledge; the trap is computing a *new object* in the key lambda, which defeats it (the key changes every recomposition):
+A stable-id key is the easy part; the trap is computing a *new object* in the key lambda, which defeats it (the key changes every recomposition):
 
 ```kotlin
 items(users, key = { User(it.id, it.name) }) { … }   // WRONG — new object every recomposition

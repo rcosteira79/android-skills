@@ -7,11 +7,11 @@ description: Use when implementing paginated lists in Android or Compose with Pa
 
 Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-skill)'s Paging references. MIT licensed. **Related:** `android-skills:android-data-layer` (non-paged repository), `android-skills:android-retrofit` / `android-skills:kmp-ktor` (network feeding `PagingSource`), `android-skills:compose` (`LazyColumn`).
 
-A strong model already produces correct Paging 3 by default: the `PagingSource<Key, Value>` (`LoadResult.Page` with `prevKey`/`nextKey`, `getRefreshKey`, catching `IOException`/`HttpException` → `LoadResult.Error`); `Pager(PagingConfig(...)) { source }.flow`; **`RemoteMediator` for offline-first** (it reliably wraps DB writes in `db.withTransaction { }`, clears local state on `LoadType.REFRESH`, and gates the full-screen loader on `loadState.source.refresh` + `itemCount == 0` so the spinner survives the Room write rather than dropping a frame early on the combined `loadState.refresh`); and `collectAsLazyPagingItems`. This skill keeps the current-version fact plus the few placement/identity rules that are easy to get wrong.
+This reference covers the current-version fact, the placement and identity rules that are easy to get wrong, and the `RemoteMediator` offline-first timing — not the basics of `PagingSource` / `Pager` / `collectAsLazyPagingItems`.
 
 ## Version (current fact)
 
-As of `androidx.paging` **3.5.0**, `paging-common`, `paging-compose`, and `paging-testing` are Kotlin Multiplatform (Android, JVM, iOS, Native, JS/Wasm); only `paging-runtime` (and `-guava`/`-rxjava`) stay Android-only. So in a clean-architecture domain module, depend only on `androidx.paging:paging-common` — it ships `PagingSource` / `PagingData` / `LoadResult` with no Android dependency, so `PagingSource` interfaces and use cases can live in domain. (Defaults often ship a stale 3.3.x and the wrong KMP story — verify at the [releases page](https://developer.android.com/jetpack/androidx/releases/paging).)
+As of `androidx.paging` **3.5.0**, `paging-common`, `paging-compose`, and `paging-testing` are Kotlin Multiplatform (Android, JVM, iOS, Native, JS/Wasm); only `paging-runtime` (and `-guava`/`-rxjava`) stay Android-only. So in a clean-architecture domain module, depend only on `androidx.paging:paging-common` — it ships `PagingSource` / `PagingData` / `LoadResult` with no Android dependency, so `PagingSource` interfaces and use cases can live in domain. (Verify the current version and KMP support at the [releases page](https://developer.android.com/jetpack/androidx/releases/paging).)
 
 ## Dual-flow rule — `PagingData` is its own `Flow`, never a field in `UiState`
 
@@ -49,6 +49,10 @@ items(
 ```
 
 Without `itemKey`, `LazyColumn` reuses slots by index — a prepended page shifts every existing item's identity, so row state / `rememberSaveable` / animations target the wrong slot and scroll visibly jumps. (`pagingItems[i]` reads *and* triggers a load near the edge; `peek(i)` reads without loading. Call `retry()` / `refresh()` from event handlers or a `LaunchedEffect`, never a composable body.)
+
+## `RemoteMediator` (offline-first)
+
+With offline-first paging the Room DAO is the `PagingSource` and a `RemoteMediator` drives network refresh + DB writes. Wrap those writes in `db.withTransaction { }`, and clear local state on `LoadType.REFRESH`. Gate the full-screen loader on `loadState.source.refresh` + `itemCount == 0` — **not** the combined `loadState.refresh`, which flips to `NotLoading` before Room finishes writing and drops the spinner a frame early.
 
 ## Testing — `TestPager` / `asSnapshot`, never `.first()`
 

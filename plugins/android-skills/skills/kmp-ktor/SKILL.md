@@ -5,11 +5,11 @@ description: Use when setting up or working with Ktor client in KMP or Android p
 
 # Ktor Client for KMP and Android
 
-A strong model already produces correct Ktor setup by default: a single shared `HttpClient` (one connection pool — never one per request), per-platform engines (`OkHttp` / `Darwin` / `CIO`, `MockEngine` for tests) in the matching source set, `install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }`, `defaultRequest`, `HttpTimeout`, `Logging` gated on debug with `sanitizeHeader` for `Authorization`, `@Serializable` DTOs (`@SerialName` for non-matching keys) mapped to domain at the repository, and the bearer `Auth` plugin. This skill keeps the handful it gets wrong. **Related:** `android-skills:android-data-layer` (repository + the `DataError` error model — its canonical home), `android-skills:android-retrofit` (Android-only equivalent).
+This reference covers the Ktor client configuration traps — plugin install order, serialization flags, auth refresh, and error mapping — not the basics of a shared `HttpClient`, engine selection, or `ContentNegotiation` setup. **Related:** `android-skills:android-data-layer` (repository + the `DataError` error model — its canonical home), `android-skills:android-retrofit` (Android-only equivalent).
 
 ## Plugin install order — `HttpRequestRetry` BEFORE `HttpTimeout`
 
-The single thing the default reliably gets wrong: it installs `HttpTimeout` before `HttpRequestRetry`. Plugins run in install order for outgoing requests; retries must be able to catch timeout errors, so retry has to wrap timeout.
+The install order most often gotten wrong: installing `HttpTimeout` before `HttpRequestRetry`. Plugins run in install order for outgoing requests; retries must be able to catch timeout errors, so retry has to wrap timeout.
 
 ```kotlin
 HttpClient(engine) {

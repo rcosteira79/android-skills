@@ -5,7 +5,7 @@ description: Use when writing, reviewing, or debugging coroutine code in Kotlin 
 
 # Kotlin Coroutines
 
-Built on **structured concurrency**: every coroutine runs in a scope; cancellation and errors propagate through the parent–child hierarchy. A strong model already gets the basics right by default — dispatcher choice (`Main` / `IO` / `Default`, never `Unconfined` in production); injecting a `CoroutineDispatcher` rather than hardcoding it; `viewModelScope` / `lifecycleScope` over `GlobalScope`; `repeatOnLifecycle(STARTED)` for collection; `coroutineScope` (cancel-together) vs `supervisorScope` (isolated children) and `async`/`await` for the nested critical-vs-optional shape; `ensureActive()` in long loops; the `runTest` / `StandardTestDispatcher` setup. This skill keeps the two disciplines it gets wrong: **who owns the scope**, and **exception handling that doesn't break cancellation**.
+Built on **structured concurrency**: every coroutine runs in a scope; cancellation and errors propagate through the parent–child hierarchy. This reference focuses on the two disciplines most often gotten wrong: **who owns the scope**, and **exception handling that doesn't break cancellation**.
 
 **Main-safety:** the function doing blocking work owns the `withContext(ioDispatcher)`; callers never switch dispatchers before calling a suspend function.
 

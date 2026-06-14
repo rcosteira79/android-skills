@@ -5,7 +5,7 @@ description: Use when Android/Gradle builds are slow — diagnosing bottlenecks 
 
 # Gradle Build Performance
 
-A strong model already knows the standard knobs by default: `org.gradle.caching=true` (build cache), `org.gradle.parallel=true`, a larger `org.gradle.jvmargs` heap, `android.nonTransitiveRClass=true` (already the AGP 8+ default), and swapping `kapt(...)` for `ksp(...)`. This skill keeps the workflow discipline plus the patterns that actually move the needle and are easy to get wrong.
+This reference covers the workflow discipline plus the patterns that move the needle and are easy to get wrong, not the standard knobs (`org.gradle.caching`, `org.gradle.parallel`, `org.gradle.jvmargs`, `android.nonTransitiveRClass`, `kapt` → `ksp`).
 
 **Workflow:** measure a baseline (clean + incremental) → `./gradlew assembleDebug --scan` (or `--profile` for a no-upload report) → find the slow phase (configuration / execution / dependency resolution) in the Build Scan timeline → apply **one** optimization at a time → measure again. Batching changes means you never learn what helped.
 

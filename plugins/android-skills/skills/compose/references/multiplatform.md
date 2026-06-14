@@ -1,6 +1,6 @@
 # Compose Multiplatform (CMP) Reference
 
-A strong model already knows the CMP shape by default: shared UI in `commonMain` (runtime / foundation / material3 / navigation are all multiplatform, Skia-rendered off-Android), `expect`/`actual` for platform bridges, per-platform entry points (`ComponentActivity.setContent`, `application { Window }`, `ComposeUIViewController`, `ComposeViewport`), and `Res.*` Compose Resources (`Res.drawable`/`Res.string`/`Res.font`, files under `commonMain/composeResources/`, `values-fr/` localization, Android XML vector drawables render on every platform). This reference keeps the migration facts + cross-platform gotchas it gets wrong.
+This reference covers the migration facts and cross-platform gotchas, not the basics of CMP project shape (`commonMain`, `expect`/`actual`, per-platform entry points, `Res.*` Compose Resources).
 
 ## Android-only APIs (nearly everything else is in commonMain)
 
@@ -21,9 +21,9 @@ A strong model already knows the CMP shape by default: shared UI in `commonMain`
 | `rememberSaveable` + `Bundle` + `@Parcelize` | `@Serializable` + a custom `Saver` (Bundle/Parcelize are Android-only) |
 | `BackHandler` | `expect`/`actual` per platform |
 
-## The gotchas the default gets wrong
+## Cross-platform gotchas
 
-**`collectAsState()`, not `collectAsStateWithLifecycle()`, in `commonMain`** — the lifecycle-aware variant is Android-only, yet all three default models reach for it in shared code. (Desktop/Web don't background like Android; iOS CMP handles lifecycle — unless `lifecycle-runtime-compose:2.10.0+` surfaces the lifecycle-aware variant in commonMain.)
+**`collectAsState()`, not `collectAsStateWithLifecycle()`, in `commonMain`** — the lifecycle-aware variant is Android-only, yet it's easy to reach for in shared code. (Desktop/Web don't background like Android; iOS CMP handles lifecycle — unless `lifecycle-runtime-compose:2.10.0+` surfaces the lifecycle-aware variant in commonMain.)
 
 **`@Preview` in commonMain is `org.jetbrains.compose.ui.tooling.preview.Preview`, NOT `androidx.compose.ui.tooling.preview.Preview`** — the androidx one is Android-only and won't compile in commonMain. Add `compose.components.uiToolingPreview`. Android Studio renders androidMain previews; IntelliJ/Fleet render commonMain ones.
 

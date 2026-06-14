@@ -2,7 +2,7 @@
 
 > **Modifier and slots together form the public-API contract of any reusable composable.** The caller owns *placement* (the `modifier` parameter) and *what to place* (the content slots). This file covers the modifier side; see `compose/references/view-composition.md` for the slot authoring rules.
 
-A strong model already knows the modifier *catalogue* (padding/size/background/border/clip, `clickable`/`combinedClickable` with `indication`) and that chain order is load-bearing. This reference keeps the **API-contract rules** it doesn't reliably apply, plus the ordering reference other files point here for.
+This reference covers the **API-contract rules** for the modifier parameter, plus the chain-ordering reference other files point here for — not the modifier catalogue itself.
 
 ## Modifier as API Contract
 
@@ -84,7 +84,7 @@ fun Avatar(modifier: Modifier = Modifier) {
 
 ### Rule 4 — No hardcoded placement on a reusable root
 
-A reusable composable's root MUST NOT carry `.fillMaxWidth()`, `.height(56.dp)`, `.padding(horizontal = 16.dp)`, or any other placement decision. Placement is the parent's job — that's what the `modifier` parameter is for. (This is the one the default reliably gets wrong.)
+A reusable composable's root MUST NOT carry `.fillMaxWidth()`, `.height(56.dp)`, `.padding(horizontal = 16.dp)`, or any other placement decision. Placement is the parent's job — that's what the `modifier` parameter is for. (This is the one most often gotten wrong.)
 
 ```kotlin
 // WRONG — root hardcodes "I take full width and 56dp tall with horizontal padding".
@@ -201,4 +201,4 @@ Modifier.size(100.dp).padding(16.dp).background(Color.Red)   // 100dp box is pad
 ## Custom modifiers, semantics, testTag — defer
 
 - **Custom modifiers:** prefer the `Modifier.Node` / `ModifierNodeElement` API over the deprecated `composed { }` (which creates a composition scope per use and captures composition locals). The deprecation + migration path lives in `compose/references/deprecated-patterns.md`.
-- **Semantics** (`contentDescription`, `role`, `clearAndSetSemantics`, `mergeDescendants`) and **`testTag`** are standard and default-correct. For the non-default a11y bits (traversal order via `traversalIndex`/`isTraversalGroup`, live-region mode) see `compose/references/accessibility.md`; for test-selector strategy (semantics-first over `testTag`) see `android-skills:android-testing`.
+- **Semantics** (`contentDescription`, `role`, `clearAndSetSemantics`, `mergeDescendants`) and **`testTag`** are standard. For the more advanced a11y bits (traversal order via `traversalIndex`/`isTraversalGroup`, live-region mode) see `compose/references/accessibility.md`; for test-selector strategy (semantics-first over `testTag`) see `android-skills:android-testing`.

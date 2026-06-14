@@ -1,6 +1,6 @@
 # Advanced Animation in Jetpack Compose
 
-For primitives, specs, and the phase rule, see `compose/references/animation.md`; for the recipe cookbook + choreography, see `compose/references/animation-recipes.md`. A strong model can derive the gesture recipes itself (swipe-to-dismiss via `Animatable` + `VelocityTracker` + `animateDecay`, `AnchoredDraggable` snap points, `Transformable` pinch/zoom/rotate) and the predictive-back `NavHost` transition set. This reference keeps the shared-element details and the draw-phase color trap.
+For primitives, specs, and the phase rule, see `compose/references/animation.md`; for the recipe cookbook + choreography, see `compose/references/animation-recipes.md`. This reference covers shared-element transitions and the draw-phase color trap.
 
 ## Shared element transitions
 

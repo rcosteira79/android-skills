@@ -2,7 +2,7 @@
 
 **The slot pattern and the `modifier` parameter form one paired API contract:** the caller owns *what to place* (slots) and *placement* (modifier). This file covers the slot side; see `compose/references/modifiers.md` for the modifier authoring rules.
 
-A strong model already knows the mechanics by default — accept `@Composable` lambda parameters (not pre-composed values) for flexible containers, support multiple slots, name UI composables as PascalCase nouns, keep composables stateless with an optional stateful wrapper, never return values from a composable (use callbacks), extract for reuse/testing but not trivially, and the default previews (`@PreviewLightDark`, `@PreviewFontScale`, `PreviewParameterProvider`, composite preview annotations). What it does *not* reliably get right is **how to author a slot API correctly** — the six rules below.
+This reference covers how to author a slot API correctly — the six rules below.
 
 ## Slot authoring rules
 

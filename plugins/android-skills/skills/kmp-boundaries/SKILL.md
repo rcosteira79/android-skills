@@ -5,7 +5,15 @@ description: Use when designing Kotlin Multiplatform boundaries — choosing bet
 
 # Kotlin Multiplatform Boundary Design
 
-A strong model already designs KMP boundaries well by default: keep `commonMain` semantic (describe *what* the product needs, not Android/iOS mechanics — `currentRegion()`, never `currentRegionFromAndroidLocale(context)`); split platform access **by capability** (`Clipboard`, `ShareSheet`, `Haptics`, `Biometrics` as separate interfaces, not one `Platform` god object); keep actuals **thin** (translate, don't decide — a business `if`/`when` inside an actual belongs in common, tested with a fake); prefer a common `interface` + per-platform binding over `expect class` whenever you need fakes / DI / lifecycle / runtime selection; and introduce an intermediate source set (`skikoMain`, `appleMain`) only when two platforms genuinely share an actual. This skill keeps the two things it gets wrong: the **Activity-owned** platform-UI boundary, and the **AGP-9 KMP-library** constraints.
+Core rules for any KMP boundary:
+
+- **Keep `commonMain` semantic** — describe *what* the product needs, not Android/iOS mechanics: `currentRegion()`, never `currentRegionFromAndroidLocale(context)`.
+- **Split by capability** — `Clipboard`, `ShareSheet`, `Haptics`, `Biometrics` as separate interfaces, not one `Platform` god object.
+- **Keep actuals thin** — they translate, they don't decide; a business `if`/`when` inside an actual belongs in common, tested with a fake.
+- **Prefer a common `interface` + per-platform binding over `expect class`** whenever you need fakes / DI / lifecycle / runtime selection.
+- **Introduce an intermediate source set** (`skikoMain`, `appleMain`) only when two platforms genuinely share an actual.
+
+Two boundaries get the most detail below: the **Activity-owned** platform-UI boundary, and the **AGP-9 KMP-library** constraints.
 
 **Related:** `android-skills:kmp-ktor` (network boundary), `compose/references/multiplatform.md` (Compose-MP mechanics), `android-skills:kotlin-coroutines` (scope ownership). For the iOS↔Swift bridge — Kotlin→Swift naming, type widths (`Int` is 32-bit), SKIE `suspend`→`async` / `Flow`→`AsyncSequence`, sealed-class exhaustiveness, SwiftUI embedding — load `references/ios-interop.md` when authoring the iOS-side actual.
 

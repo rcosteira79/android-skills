@@ -7,11 +7,9 @@ description: Use when setting up or refactoring Android Gradle build logic — c
 
 Centralise build configuration in reusable **Convention Plugins** inside a `build-logic/` composite build, so each module's `build.gradle.kts` collapses to `plugins { alias(libs.plugins.myapp.android.library) }` plus a `namespace`.
 
-The mechanics are well-known and a strong model reproduces them: `includeBuild("build-logic")` in `pluginManagement`; a `` `kotlin-dsl` `` convention module that `compileOnly`-depends on the AGP/Kotlin/KSP Gradle plugins; `register(...)`-ing each plugin with a stable `id` + `implementationClass`; `extensions.configure<ApplicationExtension / LibraryExtension / CommonExtension<*,*,*,*,*,*>>` to set `compileSdk` / `minSdk` / `buildFeatures.compose` once; and `RepositoriesMode.FAIL_ON_PROJECT_REPOS`. The canonical worked example is **[nowinandroid's `build-logic/`](https://github.com/android/nowinandroid/tree/main/build-logic)** — start from it rather than hand-rolling.
+The canonical worked example is **[nowinandroid's `build-logic/`](https://github.com/android/nowinandroid/tree/main/build-logic)** — start from it rather than hand-rolling. This skill covers the three wiring details that are easy to get wrong, plus the AGP 9 deltas.
 
-This skill keeps only the three wiring details that are easy to get wrong, plus the AGP 9 deltas.
-
-## The wiring gotchas the default gets wrong
+## The wiring gotchas
 
 **1. `build-logic` does NOT inherit the root version catalog — recreate it.** A composite build has its own `settings.gradle.kts`; the root `libs` catalog is invisible inside `build-logic` until you declare it. Without this the convention plugins can't reference `libs.*` and won't compile:
 

@@ -5,7 +5,7 @@ description: Use when setting up or working with Retrofit in Android — service
 
 # Android Networking with Retrofit
 
-Modern Retrofit setup for Android using coroutines, `kotlinx.serialization`, and Hilt. The boilerplate — service interfaces with `@GET`/`@Path`/`@Query`/`@Body`, the Hilt `@Module` wiring `Json` → `OkHttpClient` → `Retrofit` → service, `HttpLoggingInterceptor`, timeouts, the `kotlinx.serialization` converter — is standard and well-known; this skill keeps only the decisions that are easy to get wrong.
+Modern Retrofit setup for Android using coroutines, `kotlinx.serialization`, and Hilt. This reference covers the decisions that are easy to get wrong, not the standard boilerplate of service interfaces, Hilt module wiring, and the converter setup.
 
 ## Service interface
 
@@ -33,7 +33,7 @@ Json { ignoreUnknownKeys = true; coerceInputValues = true; isLenient = true }
 
 ## Auth: interceptor, and the throw-vs-proceed decision
 
-Attach the token via an `Interceptor`, not a per-endpoint `@Header` — a single missed `@Header` parameter is an unauthenticated request that fails at runtime, not compile time. The part the default reliably gets wrong is **what to do when the token is absent**:
+Attach the token via an `Interceptor`, not a per-endpoint `@Header` — a single missed `@Header` parameter is an unauthenticated request that fails at runtime, not compile time. The part most often gotten wrong is **what to do when the token is absent**:
 
 ```kotlin
 class AuthInterceptor @Inject constructor(
@@ -50,7 +50,7 @@ class AuthInterceptor @Inject constructor(
 }
 ```
 
-> **Throw vs proceed:** **Throw** when all endpoints require auth — a missing token should surface immediately rather than silently producing a confusing 401. **Proceed without the header** only if the same `OkHttpClient` is shared between authenticated and public endpoints: `?: return chain.proceed(chain.request())`. Silently proceeding when every call needs auth is the common default mistake.
+> **Throw vs proceed:** **Throw** when all endpoints require auth — a missing token should surface immediately rather than silently producing a confusing 401. **Proceed without the header** only if the same `OkHttpClient` is shared between authenticated and public endpoints: `?: return chain.proceed(chain.request())`. Silently proceeding when every call needs auth is a common mistake.
 
 ## Error handling
 

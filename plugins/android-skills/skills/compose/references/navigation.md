@@ -2,14 +2,14 @@
 
 > **Navigation 3 (`androidx.navigation3`) is the default for new work** — see the Nav3 section below. Navigation 2 (`NavHost` / `NavController`) is legacy/interop.
 
-## Navigation 2 (legacy) — default knowledge, not repeated here
+## Navigation 2 (legacy)
 
-A strong model already produces correct Nav2 by default, so this reference doesn't walk through it. Take these as the house defaults:
+These are the house defaults for Nav2:
 
 - **Type-safe `@Serializable` route classes, never string routes:** `composable<Details> { it.toRoute<Details>() }`, `navController.navigate(Details(itemId = 42))`. Nested `@Serializable` data classes serialize automatically.
 - `rememberNavController()` lives in the `NavHost`, never in a ViewModel.
 - `navOptions { popUpTo(Route::class) { inclusive = … }; launchSingleTop = true }` for back-stack control; `previousBackStackEntry?.savedStateHandle` for result passing; `navDeepLink<Route>(uriPattern = …)` + a manifest `intent-filter` for deep links; nested graphs via `navigation<Root>(startDestination = …)`; `hiltViewModel()` to scope a ViewModel to a back-stack entry; `TestNavHostController` for tests.
-- The traps it already avoids: don't navigate during composition (do it in a `LaunchedEffect`), don't mix string and type-safe routes, don't hold a `NavController` in a ViewModel.
+- Traps to avoid: don't navigate during composition (do it in a `LaunchedEffect`), don't mix string and type-safe routes, don't hold a `NavController` in a ViewModel.
 
 ---
 

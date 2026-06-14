@@ -1,6 +1,6 @@
-# CompositionLocals — what isn't default-obvious
+# CompositionLocals
 
-CompositionLocals pass data implicitly down the composition tree (`compositionLocalOf` / `staticCompositionLocalOf`, provided via `CompositionLocalProvider`, read through `.current`). A strong model already knows the basics — the built-in locals (`LocalContext`, `LocalDensity`, `LocalConfiguration`, `LocalLayoutDirection`, `LocalLifecycleOwner`, …); providing single, multiple, or nested-scoped values; when to reach for a local (deep prop-drilling of configuration-like data) versus a parameter (1–2 levels, or anything that should stay testable/injectable); and that a local is not a substitute for DI or architecture. This reference keeps only the parts that are easy to get wrong.
+CompositionLocals pass data implicitly down the composition tree (`compositionLocalOf` / `staticCompositionLocalOf`, provided via `CompositionLocalProvider`, read through `.current`). This reference covers the recomposition-scope and mutable-state traps, not the basics of the built-in locals or providing values.
 
 ## `compositionLocalOf` vs `staticCompositionLocalOf` — the recomposition-scope trap
 

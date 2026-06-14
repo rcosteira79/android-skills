@@ -1,6 +1,6 @@
 # Platform-Specific APIs and Gotchas (Compose Multiplatform)
 
-CMP shares most UI code; entry points and platform APIs differ (Desktop `Window` / `MenuBar` / `Tray` / `DialogWindow` + `ComposePanel` / `SwingPanel` interop; iOS `ComposeUIViewController` + `UIKitView`; Web `ComposeViewport`) — a strong model writes those by default. This reference keeps the per-platform **gotchas** it doesn't know.
+CMP shares most UI code; entry points and platform APIs differ (Desktop `Window` / `MenuBar` / `Tray` / `DialogWindow` + `ComposePanel` / `SwingPanel` interop; iOS `ComposeUIViewController` + `UIKitView`; Web `ComposeViewport`). This reference covers the per-platform **gotchas**, not the entry-point boilerplate.
 
 ## iOS
 

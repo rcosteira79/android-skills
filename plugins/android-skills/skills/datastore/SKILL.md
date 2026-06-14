@@ -5,7 +5,7 @@ description: Use when persisting key-value preferences or small typed settings o
 
 # Jetpack DataStore for Android and KMP
 
-Reactive coroutine-based key-value / typed storage; the same `androidx.datastore:datastore-preferences-core` runs on Android, iOS, JVM, and Web — only the file-path producer is platform-specific. A strong model already knows the basics by default: Preferences (`booleanPreferencesKey` / `stringPreferencesKey`, `dataStore.data.map { }`, atomic `edit { }`), Typed DataStore (`Serializer<T>` + `updateData`), **one instance per file** (a second throws `IllegalStateException` — enforce via a DI singleton), `SharedPreferencesMigration` (runs once then deletes the legacy file), and the repository owning writes / exposing a `StateFlow`. Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-skill); MIT. **Related:** `android-skills:android-data-layer`, `android-skills:kmp-boundaries`, `android-skills:kotlin-flows`. This skill keeps the storage-choice call plus the two error/path traps.
+Reactive coroutine-based key-value / typed storage; the same `androidx.datastore:datastore-preferences-core` runs on Android, iOS, JVM, and Web — only the file-path producer is platform-specific. This reference covers the storage-choice call plus the two error/path traps, not the basics of Preferences keys, `edit { }`, or `Serializer<T>`. Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-skill); MIT. **Related:** `android-skills:android-data-layer`, `android-skills:kmp-boundaries`, `android-skills:kotlin-flows`.
 
 ## Preferences vs Typed vs Room
 

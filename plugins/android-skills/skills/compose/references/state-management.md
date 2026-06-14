@@ -1,6 +1,6 @@
-# Compose State Management — what isn't default-obvious
+# Compose State Management
 
-A strong model already knows the basics: `mutableStateOf` / `mutableIntStateOf` (primitive specializations avoid boxing); `remember` (composition lifetime) vs `rememberSaveable` (survives config change / process death via `Bundle` / a `Saver` / `@Parcelize`); state hoisting (stateless content + stateful wrapper, "as high as needed, no higher"); `derivedStateOf` for expensive derivations; `snapshotFlow` to bridge state → Flow; `mutableStateListOf` / `mutableStateMapOf`; `StateFlow` + `collectAsStateWithLifecycle` for ViewModel state; sealed `UiState` with `when (val s = uiState)`. This reference keeps the traps and boundaries it gets wrong.
+This reference covers the state traps and boundaries, not the basics of `mutableStateOf` / `remember` / hoisting / `derivedStateOf`.
 
 ## The unified keying rule
 
@@ -108,7 +108,7 @@ val MaterialTheme.spacing: Spacing
 
 Under strong skipping (default on Kotlin 2.0.20+), same-module classes with all-stable properties are inferred stable automatically — don't `@Immutable`/`@Stable` speculatively. Reach for them only when inference can't see the type (cross-module boundaries, generic wrappers) or to document an intentional contract. The full stability model lives in `compose/references/performance.md`.
 
-## Anti-patterns the default commits
+## Common anti-patterns
 
 **Animation suspend from `viewModelScope`** — `animateScrollToItem` / `Animatable.animateTo` need a composition-scoped coroutine. `viewModelScope` outlives the composition, so the animation runs against a `LazyListState` whose UI no longer exists → stale writes, leaked `MonotonicFrameClock` subscriptions, broken animation after a config change. The VM emits an *intent*; the composition decides how to render it.
 

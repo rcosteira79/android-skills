@@ -5,7 +5,7 @@ description: Use when writing, fixing, or refactoring Android/KMP code in Kotlin
 
 # Android Testing
 
-Android-specific testing on a **test-first** foundation. A strong model already knows the mechanics by default — the three tiers (unit / `src/test` JVM, integration / Robolectric, instrumented / `src/androidTest`); fakes over mocks; `runTest` (never `runBlocking`); Turbine `test {}` or `backgroundScope` for hot flows, with `MainDispatcherRule`'s dispatcher passed into `runTest(...)`; Hilt test rules; Roborazzi screenshots; Given-When-Then naming. This skill keeps the test-first discipline plus the Compose-test traps it gets wrong.
+Android-specific testing on a **test-first** foundation. This reference focuses on the test-first discipline plus the Compose-test traps that are easy to get wrong, not the basics of the three tiers, fakes over mocks, `runTest`, or Given-When-Then naming.
 
 ## Test-first (the foundation)
 

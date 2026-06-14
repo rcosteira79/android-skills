@@ -5,11 +5,11 @@ description: Use when setting up or working with Koin in Android or KMP projects
 
 # Koin Dependency Injection (Android and KMP)
 
-Pragmatic Kotlin DI. **Koin vs Hilt:** Koin runs in `commonMain` (Hilt doesn't) and verifies the graph via `verify()` instead of codegen; Hilt is Android-only with codegen + deep Jetpack integration (`@HiltViewModel` / `hiltViewModel()`). A strong model already knows the Classic DSL by default — `single` / `factory` / `scoped` / `viewModel { }` with `get()` resolution and runtime params, `koinViewModel` / `koinInject`, and `startKoin { androidLogger(); androidContext(this@MyApp); modules(...) }`. This skill keeps the parts it gets wrong. **Related:** `android-skills:kmp-ktor`, `android-skills:android-data-layer`. Deps via `koin-bom`: `koin-core`, `koin-android`, `koin-androidx-compose`, `koin-compose-viewmodel` (KMP), `koin-compose-viewmodel-navigation` (Nav 3), `koin-test`, + optional `koin-annotations` / `koin-ksp-compiler`.
+Pragmatic Kotlin DI. **Koin vs Hilt:** Koin runs in `commonMain` (Hilt doesn't) and verifies the graph via `verify()` instead of codegen; Hilt is Android-only with codegen + deep Jetpack integration (`@HiltViewModel` / `hiltViewModel()`). This reference covers the traps and boundaries, not the Classic DSL basics (`single` / `factory` / `scoped` / `viewModel { }` with `get()` resolution and runtime params, `koinViewModel` / `koinInject`, `startKoin { androidLogger(); androidContext(this@MyApp); modules(...) }`). **Related:** `android-skills:kmp-ktor`, `android-skills:android-data-layer`. Deps via `koin-bom`: `koin-core`, `koin-android`, `koin-androidx-compose`, `koin-compose-viewmodel` (KMP), `koin-compose-viewmodel-navigation` (Nav 3), `koin-test`, + optional `koin-annotations` / `koin-ksp-compiler`.
 
 ## KSP Annotations — the generated-module accessor
 
-`@Module @ComponentScan` discovers annotated classes and emits a module you pass to `startKoin` as **`UserModule().module`** — the generated `.module` extension on the annotated class is the part the default gets wrong. Pick one style per module (don't mix Classic DSL + annotations inside a single module; switching *between* modules is fine).
+`@Module @ComponentScan` discovers annotated classes and emits a module you pass to `startKoin` as **`UserModule().module`** — the generated `.module` extension on the annotated class is the part most often missed. Pick one style per module (don't mix Classic DSL + annotations inside a single module; switching *between* modules is fine).
 
 ```kotlin
 @Single class UserRepositoryImpl(private val service: UserService) : UserRepository

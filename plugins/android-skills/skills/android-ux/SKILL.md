@@ -5,9 +5,9 @@ description: Use when designing or reviewing Android UI — applies Material Des
 
 # Android UX
 
-A strong model already *builds* M3-correct UI by default: 48dp touch targets (`IconButton` / `minimumInteractiveComponentSize()`), the 8dp grid, `MaterialTheme.colorScheme`/`typography`/`shapes` tokens instead of literals, `NavigationSuiteScaffold` for adaptive navigation, `Scaffold` + `WindowInsets` for safe areas, semantic `KeyboardOptions`, `contentDescription` on meaningful icons, `sp` for text, and light/dark testing. This skill keeps the two things it's less reliable at: a few non-obvious platform facts, and **reviewing** an existing screen for M3 compliance — the default's audit misses things its own code would get right.
+This reference covers the non-obvious platform facts and **reviewing** an existing screen for M3 compliance, not the basics of building M3-correct UI.
 
-## Non-default building facts
+## Non-obvious platform facts
 
 ### Foldable postures
 
@@ -93,7 +93,7 @@ AnimatedVisibility(
 
 ## M3 Compliance Audit
 
-Use this when **reviewing** a screen or feature for Material Design 3 compliance — this is the part a strong model under-does from memory. Score each category **Pass / Partial / Fail**, then fix any Partial/Fail before shipping.
+Use this when **reviewing** a screen or feature for Material Design 3 compliance — the part that's easy to skip from memory. Score each category **Pass / Partial / Fail**, then fix any Partial/Fail before shipping.
 
 ### 1. Color tokens
 - All colors reference `MaterialTheme.colorScheme` roles — no hardcoded hex/ARGB.

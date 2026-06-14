@@ -1,10 +1,10 @@
-# Accessibility — what isn't default-obvious
+# Accessibility
 
-A strong model already produces correct Compose accessibility by default: `contentDescription` on meaningful images/icons and `null` on decorative ones; `Modifier.semantics { role = …; onClick(label) { } }` for custom controls; `clearAndSetSemantics` to replace child semantics and `mergeDescendants` to control merging; 48dp minimum touch targets via `sizeIn(minWidth = 48.dp, minHeight = 48.dp)`; `heading()` for section navigation; `stateDescription` + `Role.Checkbox` for stateful controls; `CustomAccessibilityAction` for complex gestures; and testing via `onNodeWithContentDescription` / `isHeading()`. This reference keeps the two areas the default handles less reliably.
+This reference covers traversal order and live regions, not the basics of `contentDescription`, `semantics`, touch targets, or `heading()`.
 
 ## Traversal order — `traversalIndex` and `isTraversalGroup`
 
-Screen-reader order follows layout position by default. When the visual order and the reading order should differ — or when scattered elements should be read as one unit — set it explicitly. This is the part the default rarely reaches for.
+Screen-reader order follows layout position by default. When the visual order and the reading order should differ — or when scattered elements should be read as one unit — set it explicitly. This is the part that's easy to skip.
 
 ```kotlin
 // Reorder within a group: lower traversalIndex is read first
@@ -24,7 +24,7 @@ Column(modifier = Modifier.semantics { isTraversalGroup = true }) {
 
 ## Live regions — `Polite` vs `Assertive`
 
-A live region announces dynamic content changes without the user moving focus to it (loading → loaded, validation results, async status). The trap is the mode — the default tends to reach for `Assertive`, which **interrupts** whatever the screen reader is currently saying.
+A live region announces dynamic content changes without the user moving focus to it (loading → loaded, validation results, async status). The trap is the mode — it's tempting to reach for `Assertive`, which **interrupts** whatever the screen reader is currently saying.
 
 ```kotlin
 Text(

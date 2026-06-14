@@ -163,7 +163,7 @@ Wrong state or unexpected re-renders:
 
 **Note:** Since Compose compiler 2.0+ (Kotlin 2.0+), strong skipping mode is enabled by default and the compiler automatically memoizes lambdas that capture stable references. Manual `remember {{ }}` wrapping is no longer necessary in most cases. If you see excessive recomposition from lambdas, check whether the captured references are unstable (mutable collections, non-data classes) rather than wrapping in `remember`.
 
-(Standard `adb` commands — `devices`, `install -r`, `am start`, `pm clear`, `ps`, `run-as … ls /data/data/<pkg>/` — are default knowledge; for visual-state bugs prefer `android layout` over `screencap` as noted above.)
+(Standard `adb` commands — `devices`, `install -r`, `am start`, `pm clear`, `ps`, `run-as … ls /data/data/<pkg>/` — aren't covered here; for visual-state bugs prefer `android layout` over `screencap` as noted above.)
 
 ## Multi-Component Evidence Template
 

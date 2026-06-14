@@ -2,7 +2,7 @@
 
 For animation primitives, specs, the phase rule, and M3 motion tokens, see `compose/references/animation.md`; for shared-element / gesture-driven / predictive-back / `graphicsLayer` work, see `compose/references/animation-advanced.md`.
 
-A strong model can derive most one-off recipes itself: swipe-to-dismiss via `SwipeToDismissBox` + `rememberSwipeToDismissBoxState`; an expandable card via `animateContentSize()` + an arrow `rotationZ`; a custom `PullToRefreshBox` indicator off `state.distanceFraction`; a collapsing FAB via `ExtendedFloatingActionButton(expanded = …)`; a bottom sheet via `AnchoredDraggable`; a parallax header via `graphicsLayer { translationY = scroll * factor }`; a slide-based tab switch via `AnimatedContent` + `togetherWith`. This reference keeps the loading recipe and the choreography patterns worth having canonically.
+This reference covers the loading recipe and the choreography patterns worth having canonically.
 
 ## Shimmer / skeleton loading + loading crossfade
 

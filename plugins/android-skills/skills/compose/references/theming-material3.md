@@ -1,6 +1,6 @@
 # Material 3 Theming Reference
 
-Material 3 theming is standard, and a strong model produces it correctly by default: `MaterialTheme(colorScheme = …, typography = …, shapes = …)`; `lightColorScheme`/`darkColorScheme` selected via `isSystemInDarkTheme()`; dynamic color via `dynamicLightColorScheme(context)` / `dynamicDarkColorScheme(context)` gated on `Build.VERSION.SDK_INT >= Build.VERSION_CODES.S`; custom `Typography` / `Shapes`; `Surface` for themed containers; and consuming `MaterialTheme.colorScheme.*` / `.typography.*` / `.shapes.*` tokens rather than hardcoded values. This reference keeps only what isn't default-obvious.
+This reference covers extending the theme beyond M3's three slots, not the basics of `MaterialTheme`/`lightColorScheme`/`darkColorScheme`/dynamic color.
 
 ## Extending the theme with a CompositionLocal
 

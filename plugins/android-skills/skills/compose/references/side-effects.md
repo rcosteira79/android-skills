@@ -1,14 +1,14 @@
-# Compose Side Effects — what isn't default-obvious
+# Compose Side Effects
 
-A strong model already knows the effect APIs and picks them correctly by default: `LaunchedEffect(keys)` for keyed coroutines — keyed on the data it depends on, not `Unit` (avoiding both the run-once-stale bug and the changing-key infinite loop); `DisposableEffect(key) { … onDispose { } }` for listeners/resources, always with cleanup; `SideEffect` for per-composition mirroring; `rememberCoroutineScope().launch` from event handlers (never `runBlocking`); `produceState` to adapt callbacks/flows into `State`; `rememberUpdatedState` to capture a fresh callback inside a long-running effect (and *not* as a substitute for keying); `snapshotFlow` to turn Compose state into a `Flow`. Always reach for the **smallest** effect that does the job. This reference keeps the parts the default gets wrong.
+This reference covers the effect traps and scope boundaries, not the basics of choosing between `LaunchedEffect` / `DisposableEffect` / `SideEffect`. Always reach for the **smallest** effect that does the job.
 
 ## Effects are UI-owned work, not business operations
 
 A network request, database write, or domain validation inside a `LaunchedEffect` is a scope violation even though the API allows it. `LaunchedEffect` is for *UI-owned keyed work* — observing scroll for analytics, debouncing input, restoring focus after navigation. Move repository/network calls to the ViewModel; the composable receives state. (See `android-skills:android-data-layer` and `compose/references/state-management.md` for the hoisting boundary.)
 
-## Lifecycle effects — prefer the modern APIs (the default reaches for the legacy one)
+## Lifecycle effects — prefer the modern APIs
 
-The default still hand-rolls `DisposableEffect` + `LifecycleEventObserver` for "run X while the screen is STARTED/RESUMED." Since `lifecycle-runtime-compose` 2.8 there are purpose-built effects that replace ~90% of that boilerplate:
+It's tempting to hand-roll `DisposableEffect` + `LifecycleEventObserver` for "run X while the screen is STARTED/RESUMED." Since `lifecycle-runtime-compose` 2.8 there are purpose-built effects that replace ~90% of that boilerplate:
 
 ```kotlin
 LifecycleStartEffect(Unit) {
@@ -27,7 +27,7 @@ LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { saveDraft() }
 
 The key argument follows the `LaunchedEffect` rules. Between these three the modern APIs cover every event — reach for the legacy `DisposableEffect + LifecycleEventObserver` only on lifecycle 2.7 and older, or for an event they don't expose.
 
-## Anti-patterns the default commits
+## Common anti-patterns
 
 ### Don't manufacture event-flag state to trigger an effect — the click *is* the event
 

@@ -5,7 +5,7 @@ description: Use when working with Flow, StateFlow, SharedFlow, or Channel in Ko
 
 # Kotlin Flows
 
-A strong model already gets the basics right by default: `Flow` cold / `StateFlow` hot-with-state / `SharedFlow` hot-broadcast; the operator table (`map`/`filter`/`onEach`/`combine`/`zip`/`debounce`/`distinctUntilChanged`/`flatMapLatest`/`flowOn`/`stateIn`/`shareIn`); private-mutable-public-immutable (`_uiState`/`uiState`); `_state.update {}` over non-atomic `.value =`; `stateIn` at the property (not inside a function); `flatMapLatest` over a manual `Job?`; and lifecycle-safe collection (`collectAsStateWithLifecycle` / `repeatOnLifecycle(STARTED)`). This skill keeps the parts the default gets wrong or misses.
+This reference covers the Flow traps and semantic edge cases — Channel vs SharedFlow, callback bridging, retry/error handling, side effects in transforms, and KMP boundaries — not the basics of cold/hot streams, the operator table, or lifecycle-safe collection.
 
 ## Channel vs SharedFlow — the semantics that bite
 
@@ -17,7 +17,7 @@ A strong model already gets the basics right by default: `Flow` cold / `StateFlo
 | `Channel` broadcast to multiple collectors | Migrate → `SharedFlow` (see below) |
 | `Channel` as producer-consumer queue | Keep — correct |
 
-**`Channel.receiveAsFlow()` is fan-out, NOT broadcast.** With multiple collectors, each event reaches **one** collector (the framework picks which), not all of them. If every collector must see every event, you need `SharedFlow`. This is the trap the default misses when it reaches for `Channel` to multicast.
+**`Channel.receiveAsFlow()` is fan-out, NOT broadcast.** With multiple collectors, each event reaches **one** collector (the framework picks which), not all of them. If every collector must see every event, you need `SharedFlow`. This is the trap that's easy to fall into when reaching for `Channel` to multicast.
 
 For single-consumer one-shot events, `Channel(BUFFERED).receiveAsFlow()` is the default because `send` suspends until consumed (the event is queued, never dropped), whereas `SharedFlow(replay = 0)` drops the emission if no collector is active at the instant of emission. Expose the `Flow`, never the `Channel`, and collect with `collect` inside `LaunchedEffect` — **not** `collectAsStateWithLifecycle`, which retains the last event as state and re-fires it on every recomposition / config change.
 

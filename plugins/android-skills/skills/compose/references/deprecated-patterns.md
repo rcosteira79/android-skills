@@ -1,6 +1,6 @@
 # Deprecated Patterns & API Migrations in Jetpack Compose
 
-A strong model doesn't reliably track *what's been deprecated* — it'll happily write a retired Accompanist API or an old overload. This is the canonical list of old → current Compose APIs.
+A canonical list of old → current Compose APIs, for catching retired Accompanist APIs and superseded overloads.
 
 ## Accompanist retirement (everything folded into AndroidX — remove the deps)
 

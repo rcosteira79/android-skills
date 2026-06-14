@@ -1,6 +1,6 @@
 # Animation in Jetpack Compose
 
-A strong model already knows the animation APIs by default: `animate*AsState` (single property), `AnimatedVisibility` (+ enter/exit transitions), `AnimatedContent` / `Crossfade` (content swap), `rememberTransition` (preferred over `updateTransition` for multiple synced values), `Animatable` (imperative/gesture — `remember`-ed, never created in composition), `rememberInfiniteTransition`, `animateContentSize`, `animateItem` (lists — see `compose/references/lists-scrolling.md`), and the `spring` / `tween` / `keyframes` specs. Always pass `label` for the inspector. This reference keeps the parts it gets wrong.
+This reference covers the animation traps, boundaries, and motion-token discipline, not the basics of `animate*AsState` / `AnimatedVisibility` / `AnimatedContent`. Always pass `label` for the inspector.
 
 ## `AnimatedContent` — `contentKey` on shape, not payload
 

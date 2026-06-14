@@ -2,11 +2,11 @@
 
 Screen-level structure — the architectural layer above individual composables. For slot / content-API authoring, see `compose/references/view-composition.md`; for M3 UX (touch targets, foldable postures, canonical layouts, M3 compliance), see `android-skills:android-ux`.
 
-A strong model already structures screens correctly by default: a public screen composable that integrates the ViewModel (`collectAsStateWithLifecycle`, `LaunchedEffect` for the initial load) above a stateless content composable receiving state + callbacks; `Scaffold` with its `innerPadding` applied; `WindowSizeClass` / `NavigationSuiteScaffold` for adaptive layouts. This reference keeps the two things it under-does.
+This reference covers two screen-structure details that are easy to skip — making the content composable `private`, and keeping framework state in the UI rather than the ViewModel — not the basics of the screen/content split, `Scaffold`, or adaptive layouts.
 
 ## Make the content composable `private`
 
-The screen/content split itself is default; making the **content composable `private`** (or `internal`) is the part the default skips. The public screen composable wires the ViewModel; the private content composable is pure — testable, previewable, and impossible to accidentally hand a ViewModel from elsewhere.
+The screen/content split is common; making the **content composable `private`** (or `internal`) is the part that's easy to skip. The public screen composable wires the ViewModel; the private content composable is pure — testable, previewable, and impossible to accidentally hand a ViewModel from elsewhere.
 
 ```kotlin
 @Composable

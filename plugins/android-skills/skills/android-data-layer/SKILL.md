@@ -5,11 +5,11 @@ description: Use when implementing the data layer in Android — Repository patt
 
 # Android Data Layer
 
-The data layer coordinates data from multiple sources; its public API is repository interfaces, and its internals (DAOs, API services, DTOs) never leak upward. A strong model already produces the standard shape by default: the repository as single source of truth (Room DAO `Flow` for observed reads, a `suspend refresh(): Result<Unit>` for writes), `@Entity` / `@Dao` (`Flow` for observed queries, `suspend` for one-shot reads + mutations, `@Upsert`), `@Binds` to wire the interface to its implementation, the three model types (DTO ↔ Entity ↔ domain) mapped at layer boundaries, and offline-first reads (observe local + trigger a background refresh in parallel) / outbox writes. This skill is the **canonical home for the error-propagation model**, and keeps the KMP-Room setup the default botches. **Related:** `android-skills:android-retrofit` (Retrofit service/OkHttp/Hilt wiring), `android-skills:android-dev` (overall app architecture).
+The data layer coordinates data from multiple sources; its public API is repository interfaces, and its internals (DAOs, API services, DTOs) never leak upward. This skill is the canonical home for the **error-propagation model**, plus the KMP-Room setup. **Related:** `android-skills:android-retrofit` (Retrofit service/OkHttp/Hilt wiring), `android-skills:android-dev` (overall app architecture).
 
 ## Error propagation — the layered model
 
-Map errors to a single sealed `DataError` hierarchy at the repository boundary; never let `IOException` / `HttpException` / `SQLiteException` reach the ViewModel.
+The goal: data-layer errors (`IOException` / `HttpException` / `SQLiteException`) must never reach the ViewModel. Map them to a domain error type at the repository boundary. If the project already has an error convention, match it; otherwise a sealed `DataError` hierarchy is a reasonable default:
 
 ```kotlin
 sealed class DataError(message: String, cause: Throwable? = null) : Exception(message, cause) {
@@ -37,7 +37,7 @@ The boundary moves outward by one layer when a domain layer exists:
 
 ## Room in KMP (`commonMain`)
 
-Room has been KMP-stable since 2.7.0. The shared setup differs from the Android-only setup in three places the default gets wrong:
+Room has been KMP-stable since 2.7.0. The shared setup differs from the Android-only setup in three places:
 
 1. **`@ConstructedBy(...)`** on the `@Database`, paired with an `expect object` Room generates per-platform `actual`s for.
 2. **`BundledSQLiteDriver`** (from `androidx.sqlite:sqlite-bundled`) — pins the same SQLite version across Android/iOS/JVM/web (Android's system SQLite drifts between API levels and devices).

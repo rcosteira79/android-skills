@@ -1,6 +1,6 @@
-# Design-to-Compose — what isn't default-obvious
+# Design-to-Compose
 
-Translating a Figma mockup or screenshot into Compose is something a strong model already does well by default: decomposing the screen top-down into purpose-named composables; picking the right container (`Column` / `Row` / `Box` / `LazyColumn` / `FlowRow` / `LazyVerticalGrid`); mapping visual elements to their M3 components (`ElevatedCard`, `Button`, `TextField`, `NavigationBar`, `SearchBar`, `SegmentedButton`, …); mapping colours / type / shape to `MaterialTheme.*` tokens rather than hex/sp literals; `Arrangement.spacedBy()` over manual `Spacer`s; `start`/`end` padding for RTL; `WindowSizeClass` for responsive layouts; and applying `Scaffold`'s `innerPadding`. It also reliably avoids the usual traps — literal `Box`+modifier reconstruction of an existing M3 component, mirroring deep Figma-frame nesting, hardcoded colours that break dark theme, sub-48dp touch targets. This reference keeps the two things that aren't default knowledge.
+This reference covers the easy-to-miss parts of translating a Figma mockup into Compose: fine-grained shadows and custom spacing/elevation scales.
 
 ## Shadows: `dropShadow` / `innerShadow` (Compose UI 1.9+)
 

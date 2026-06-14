@@ -5,7 +5,7 @@ description: Use when loading images in Compose or Compose Multiplatform with Co
 
 # Coil 3 for Compose & Compose Multiplatform
 
-A strong model already knows the Coil 3 basics by default: `AsyncImage` is the primary API (it infers the display size from layout constraints, avoiding oversized bitmaps); `SubcomposeAsyncImage` for fully custom loading/success/error slots; `ImageRequest.Builder(ctx).data(url).crossfade(…).size(…).scale(…).transformations(…).build()`; `placeholder` / `error` painters; `contentDescription` (or `null` for decorative); and a single app-wide `ImageLoader` (shared disk/memory cache) provided via Hilt. This skill keeps the KMP specifics plus the two performance guardrails it gets wrong.
+This reference covers the KMP specifics and two performance guardrails, not the basics of `AsyncImage` / `SubcomposeAsyncImage` / `ImageRequest` / `placeholder` / `error` / `contentDescription` / a shared `ImageLoader`.
 
 ## KMP: `LocalPlatformContext`, not `LocalContext`
 
