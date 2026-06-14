@@ -37,6 +37,17 @@ LaunchedEffect(Unit) {
 
 Default to `launch { _events.emit(e) }` — it suspends until the collector is ready, so the effect is never silently lost. `tryEmit()` on a default `MutableSharedFlow()` (no buffer) **silently drops** when no subscriber is ready; adding `extraBufferCapacity = 1` only moves the cliff (a second rapid emission while the buffer is full returns `false` and is dropped with no error). Use `tryEmit` only for miss-tolerable effects (tooltip, sound).
 
+## Exposing a read-only flow — explicit backing fields (Kotlin 2.4+)
+
+The `_x` (mutable) / `x` (read-only) two-property idiom collapses into a single property with explicit backing fields — stable in Kotlin **2.4**, experimental in 2.3:
+
+```kotlin
+val uiState: StateFlow<UiState>
+    field = MutableStateFlow(UiState())   // inside the class: uiState.update { … }; callers see StateFlow
+```
+
+Applies wherever a `StateFlow` / `SharedFlow` is exposed from a mutable backing (`MutableStateFlow` *is* a `StateFlow`, so the default getter type-checks). It does **not** fit a `Channel` exposed as a `Flow` — a `Channel` isn't a `Flow`, so keep the explicit `_events` / `receiveAsFlow()` pair above. On Kotlin < 2.4 (check the version catalog), keep the classic `private val _x` + `val x = _x.asStateFlow()`.
+
 ## Callback bridging
 
 ```kotlin

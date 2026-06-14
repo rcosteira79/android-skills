@@ -35,6 +35,62 @@ Load the specific skill for the task, always with the **fully-qualified `android
 | Debugging — Logcat, crashes, ANRs, profiling | `android-skills:android-debugging` |
 | AOSP / AndroidX source lookup | `android-skills:android-source-search` |
 
+## New-project UI convention (greenfield)
+
+For a **new** project or feature with no established convention. In existing code, match what's already there — see *Reuse the project's existing mechanism* below.
+
+The UI layer is MVVM with an MVI-style state/effect split:
+
+- **One immutable `UiState` per screen**, exposed as `StateFlow<UiState>` and structured with the four buckets below. The content composable renders it and emits callbacks — nothing else.
+- **One effects stream for fire-once imperatives** — navigate, snackbar/toast, scroll-to, share-sheet, haptics. Use `Channel(Channel.BUFFERED).receiveAsFlow()`, **not** `SharedFlow`: an effect emitted while the screen is backgrounded buffers and replays on resume instead of being dropped. Collect it in a `LaunchedEffect` (lifecycle-scoped via `repeatOnLifecycle`), never `collectAsStateWithLifecycle`. Channel-vs-`SharedFlow` rationale: `android-skills:kotlin-flows`.
+- **State vs effect — "does it survive a config change?"** Anything still true after rotation / process death is **state** (an error to show = a field in `UiState`); anything the UI runs once and forgets is an **effect**. This is the `durable-state-over-events` rule in `compose/references/state-management.md`: keep durable things in state; the effect stream is only for one-shot imperatives.
+- **Promote callbacks to a `@Stable Actions` interface at ~4–5+** (or when the same set is threaded through several composable layers). Below that, individual lambdas are simpler — don't abstract early. The ViewModel implements the interface; the content composable depends on `FooActions`, **never** the ViewModel, so it stays pure and previewable (a no-op `object : FooActions {}` in previews).
+
+```kotlin
+data class FooUiState(/* the four buckets — see below */)
+
+sealed interface FooEffect {
+    data class NavigateTo(val id: String) : FooEffect
+    data class ShowSnackbar(val message: String) : FooEffect
+}
+
+@Stable                                       // promote here once lambdas pile up (~4-5+)
+interface FooActions {
+    fun onItemClick(id: String)
+    fun onRefresh()
+}
+
+class FooViewModel(/* … */) : ViewModel(), FooActions {
+    private val _uiState = MutableStateFlow(FooUiState())
+    val uiState: StateFlow<FooUiState> = _uiState.asStateFlow()
+
+    private val _effects = Channel<FooEffect>(Channel.BUFFERED)   // not SharedFlow — buffers while backgrounded
+    val effects = _effects.receiveAsFlow()
+
+    override fun onItemClick(id: String) { /* _uiState.update { … } */ _effects.trySend(FooEffect.NavigateTo(id)) }
+    override fun onRefresh() { /* … */ }
+}
+
+@Composable
+fun FooScreen(viewModel: FooViewModel = hiltViewModel(), onNavigate: (String) -> Unit) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(Unit) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.effects.collect { effect ->
+                when (effect) {
+                    is FooEffect.NavigateTo -> onNavigate(effect.id)
+                    is FooEffect.ShowSnackbar -> { /* show snackbar */ }
+                }
+            }
+        }
+    }
+    FooContent(uiState = uiState, actions = viewModel)   // VM passed as FooActions — FooContent sees only the interface
+}
+```
+
+> **Kotlin 2.4+:** collapse the `_uiState`/`uiState` pair with explicit backing fields (`val uiState: StateFlow<FooUiState>` + `field = MutableStateFlow(…)`) — `uiState` only, never the effects `Channel`. Full idiom + version gate: `android-skills:kotlin-flows`.
+
 ## Four-bucket state modeling
 
 Screens with rich interactions (forms, calculators, multi-step wizards) get unmanageable when state is one flat `data class`. Slice `UiState` into four explicit buckets, and **derive computed values as class properties, not constructor parameters**:
