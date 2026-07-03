@@ -71,6 +71,9 @@ The baseline for Android and KMP work — house defaults (DI, async, JSON, image
 
 > Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
 
+### `modularization`
+Visibility discipline for multi-module Android/Kotlin projects — declare everything at the lowest visibility that still compiles (`private` → `internal` → `public`), keep DI-bound implementation classes `internal` behind `public` interfaces, and treat widening to `public` as a decision that requires a real cross-module consumer.
+
 ### `android-testing`
 Test-first discipline for Android/KMP plus the Android test traps — Compose-test dispatching (`StandardTestDispatcher` default, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, and animation/screenshot determinism.
 

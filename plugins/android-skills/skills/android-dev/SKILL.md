@@ -34,6 +34,7 @@ Load the specific skill for the task, always with the **fully-qualified `android
 | Build speed, kapt → KSP | `android-skills:gradle-build-performance` |
 | Debugging — Logcat, crashes, ANRs, profiling | `android-skills:android-debugging` |
 | AOSP / AndroidX source lookup | `android-skills:android-source-search` |
+| Multi-module visibility & module boundaries | `android-skills:modularization` |
 
 ## New-project UI convention (greenfield)
 
@@ -118,6 +119,23 @@ The bucket dictates lifecycle and persistence, not the field. Persisting `isSubm
 ## Reuse the project's existing mechanism
 
 Before adding any new mechanism — an event dispatcher, an effects `Channel`/`SharedFlow`, a use-case layer, or a parallel state field — open a sibling ViewModel in the same feature and reuse what's already there. The easy miss here is **duplicating** an existing mechanism instead of widening it — adding a second `shouldDisplayUndoX` flag beside the existing one rather than generalizing the one that's there. If existing code contradicts a "best practice," follow the code and flag the inconsistency; never silently override the project's architecture.
+
+## Comments — earn every one
+
+**The test for every comment: could a reader quickly infer what it says from the code beside it? If yes, it's redundant — delete it.** A comment survives only by carrying what the code cannot: a non-obvious *why* — a decision, constraint, workaround, or gotcha. Never narrate *what* the code does; clear names and small functions already say it. "What a well-known type or call does" is a *what* the reader can look up, not a *why*.
+
+Write the **fewest comments that pass that test** — this holds even when a task says "make it readable" or "for juniors." Readability comes from naming and structure; a comment a newcomer needs in order to follow *what* the code does is a signal to rename or extract, not to annotate.
+
+**Keep** a genuine *why* (`// rethrow first — a broad catch would swallow CancellationException`), a justifying comment at a surprising call site, KDoc on a public API that adds information beyond its signature, and `TODO(owner-or-link)`. Honor an explicit request for documentation.
+
+**Delete on sight** — each is trivially inferable from the code beside it:
+
+```kotlin
+// ---- domain model ----                                 // section-divider / banner (any width)
+/** The user profile as the app cares about it. */        // KDoc restating the class name
+val uiState = _uiState.asStateFlow()  // private mutable, public read-only   (restates the idiom)
+} catch (e: IOException) {  // no connectivity, timeout, DNS failure   (restates what the type means)
+```
 
 ## KMP
 
