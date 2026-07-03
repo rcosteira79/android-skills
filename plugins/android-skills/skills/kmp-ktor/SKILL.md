@@ -41,7 +41,7 @@ Json { ignoreUnknownKeys = true; coerceInputValues = true; encodeDefaults = true
 
 ## Bearer refresh — `markAsRefreshTokenRequest()` or it loops
 
-In the `Auth` `bearer { refreshTokens { … } }` block, call `markAsRefreshTokenRequest()` before the refresh POST so the refresh call isn't intercepted by the same `Auth` plugin — without it, a failing refresh triggers another refresh, looping infinitely.
+In the `Auth` `bearer { refreshTokens { … } }` block, mark the refresh POST with `markAsRefreshTokenRequest()` so it isn't intercepted by the same `Auth` plugin — without it, a failing refresh triggers another refresh, looping infinitely. It's an `HttpRequestBuilder` extension: call it **inside the request builder block**, not bare in `refreshTokens { }` (where it doesn't compile).
 
 ```kotlin
 install(Auth) {
@@ -49,8 +49,10 @@ install(Auth) {
         loadTokens { tokenStorage.getTokens()?.let { BearerTokens(it.access, it.refresh) } }
         refreshTokens {
             val refresh = oldTokens?.refreshToken ?: return@refreshTokens null
-            markAsRefreshTokenRequest()                          // skip the Auth plugin for this call
-            val r = client.post("auth/refresh") { setBody(RefreshRequestDto(refresh)) }.body<TokenResponseDto>()
+            val r = client.post("auth/refresh") {
+                markAsRefreshTokenRequest()                      // skip the Auth plugin for this call
+                setBody(RefreshRequestDto(refresh))
+            }.body<TokenResponseDto>()
             tokenStorage.save(r.accessToken, r.refreshToken); BearerTokens(r.accessToken, r.refreshToken)
         }
         sendWithoutRequest { it.url.pathSegments.none { seg -> seg in listOf("login", "register") } }
@@ -65,17 +67,20 @@ Keep `BearerTokens` at the plugin boundary; the rest of the app uses your own to
 For real-time transports, install the kotlinx-serialization converter so typed messages flow over the same `Json` config as `ContentNegotiation`; without it you hand-encode/decode `Frame.Text`. (SSE = server→client only, plain HTTP, built-in reconnect; WebSocket = bidirectional, manual reconnect, binary frames — default to SSE when the client only consumes.)
 
 ```kotlin
-install(WebSockets) {
-    pingIntervalMillis = 30_000
-    contentConverter = KotlinxWebsocketSerializationConverter(Json)
+val client = HttpClient(engine) {
+    install(WebSockets) {
+        pingIntervalMillis = 30_000
+        contentConverter = KotlinxWebsocketSerializationConverter(Json)
+    }
+    install(SSE)
 }
+
 client.webSocket("wss://api.example.com/ws") {
     sendSerialized(SubscribeMessage(topic = "items"))
     while (true) { val msg = receiveDeserialized<ServerMessage>(); /* handle */ }
 }
 
 // SSE — incoming is a Flow<ServerSentEvent>
-install(SSE)
 client.sse("https://api.example.com/events") { incoming.collect { event -> /* event.event / event.data / event.id */ } }
 ```
 

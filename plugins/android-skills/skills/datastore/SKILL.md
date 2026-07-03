@@ -5,7 +5,7 @@ description: Use when persisting key-value preferences or small typed settings o
 
 # Jetpack DataStore for Android and KMP
 
-Reactive coroutine-based key-value / typed storage; the same `androidx.datastore:datastore-preferences-core` runs on Android, iOS, JVM, and Web — only the file-path producer is platform-specific. This reference covers the storage-choice call plus the two error/path traps, not the basics of Preferences keys, `edit { }`, or `Serializer<T>`. Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-skill); MIT. **Related:** `android-skills:android-data-layer`, `android-skills:kmp-boundaries`, `android-skills:kotlin-flows`.
+Reactive coroutine-based key-value / typed storage; the same `androidx.datastore:datastore-preferences-core` runs on Android, iOS, and JVM — only the file-path producer is platform-specific. (Web support is 1.3.0-alpha only, and it's `sessionStorage`/OPFS-backed there, not file-path-based.) This reference covers the storage-choice call plus the two error/path traps, not the basics of Preferences keys, `edit { }`, or `Serializer<T>`. Adapted from [Meet-Miyani/compose-skill](https://github.com/Meet-Miyani/compose-skill); MIT. **Related:** `android-skills:android-data-layer`, `android-skills:kmp-boundaries`, `android-skills:kotlin-flows`.
 
 ## Preferences vs Typed vs Room
 
