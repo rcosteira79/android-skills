@@ -12,6 +12,8 @@ This reference covers the Ktor client configuration traps — plugin install ord
 The install order most often gotten wrong: installing `HttpTimeout` before `HttpRequestRetry`. Plugins run in install order for outgoing requests; retries must be able to catch timeout errors, so retry has to wrap timeout.
 
 ```kotlin
+val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; encodeDefaults = true }  // encodeDefaults: see the section below
+
 HttpClient(engine) {
     install(ContentNegotiation) { json(json) }
     install(Auth) { bearer { /* loadTokens / refreshTokens */ } }
@@ -29,13 +31,7 @@ Reversed, `HttpTimeout` resolves the request as failed before the retry plugin s
 
 ## `encodeDefaults = true` — or protocol-constant fields silently vanish
 
-`kotlinx.serialization` defaults to `encodeDefaults = false`, which **strips any property whose value equals its declared default** from the serialized output. A `jsonrpc: String = "2.0"` (or `version = "1.0"`, `type = "..."`) disappears from the payload; the server rejects every request with a generic "invalid request," and the fix is a one-line flag — found only after hours chasing HTTP-layer red herrings. Always set it for client APIs:
-
-```kotlin
-val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; encodeDefaults = true }
-```
-
-This is the single configured instance the whole client shares — `install(ContentNegotiation) { json(json) }` above, and the WebSocket converter below.
+`kotlinx.serialization` defaults to `encodeDefaults = false`, which **strips any property whose value equals its declared default** from the serialized output. A `jsonrpc: String = "2.0"` (or `version = "1.0"`, `type = "..."`) disappears from the payload; the server rejects every request with a generic "invalid request," and the fix is a one-line flag — found only after hours chasing HTTP-layer red herrings. Always set it for client APIs — the `val json` defined at the top of this file does, alongside `ignoreUnknownKeys` and `coerceInputValues`. That one configured instance is what the whole client shares: `install(ContentNegotiation) { json(json) }` and the WebSocket converter both take it.
 
 ## `expectSuccess` — pick one model, consistently
 
