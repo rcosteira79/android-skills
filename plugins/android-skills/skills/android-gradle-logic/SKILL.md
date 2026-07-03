@@ -5,195 +5,24 @@ description: Use when setting up or refactoring Android Gradle build logic — c
 
 # Android Gradle Build Logic
 
-Centralise build logic in reusable Convention Plugins instead of copy-pasting `build.gradle.kts` configuration across modules.
+Centralise build configuration in reusable **Convention Plugins** inside a `build-logic/` composite build, so each module's `build.gradle.kts` collapses to `plugins { alias(libs.plugins.myapp.android.library) }` plus a `namespace`.
 
-## Project Structure
+The canonical worked example is **[nowinandroid's `build-logic/`](https://github.com/android/nowinandroid/tree/main/build-logic)** — start from it rather than hand-rolling. This skill covers the three wiring details that are easy to get wrong, plus the AGP 9 deltas.
 
-```
-root/
-├── build-logic/
-│   ├── convention/
-│   │   ├── src/main/kotlin/
-│   │   │   ├── AndroidApplicationConventionPlugin.kt
-│   │   │   ├── AndroidLibraryConventionPlugin.kt
-│   │   │   └── AndroidComposeConventionPlugin.kt
-│   │   └── build.gradle.kts
-│   └── settings.gradle.kts
-├── gradle/
-│   └── libs.versions.toml
-├── app/
-│   └── build.gradle.kts          ← just: plugins { alias(libs.plugins.myapp.android.application) }
-├── feature/home/
-│   └── build.gradle.kts          ← just: plugins { alias(libs.plugins.myapp.android.library) }
-└── settings.gradle.kts
-```
+## The wiring gotchas
 
----
-
-## Step 1: Include `build-logic` as a Composite Build
-
-```kotlin
-// settings.gradle.kts
-pluginManagement {
-    includeBuild("build-logic")
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-```
-
----
-
-## Step 2: Configure `build-logic/settings.gradle.kts`
+**1. `build-logic` does NOT inherit the root version catalog — recreate it.** A composite build has its own `settings.gradle.kts`; the root `libs` catalog is invisible inside `build-logic` until you declare it. Without this the convention plugins can't reference `libs.*` and won't compile:
 
 ```kotlin
 // build-logic/settings.gradle.kts
 dependencyResolutionManagement {
-    repositories {
-        google()
-        mavenCentral()
-    }
     versionCatalogs {
-        create("libs") {
-            from(files("../gradle/libs.versions.toml"))
-        }
-    }
-}
-
-rootProject.name = "build-logic"
-include(":convention")
-```
-
----
-
-## Step 3: Configure `build-logic/convention/build.gradle.kts`
-
-```kotlin
-plugins {
-    `kotlin-dsl`
-}
-
-dependencies {
-    compileOnly(libs.android.gradlePlugin)
-    compileOnly(libs.kotlin.gradlePlugin)
-    compileOnly(libs.ksp.gradlePlugin)
-}
-
-gradlePlugin {
-    plugins {
-        register("androidApplication") {
-            id = "myapp.android.application"
-            implementationClass = "AndroidApplicationConventionPlugin"
-        }
-        register("androidLibrary") {
-            id = "myapp.android.library"
-            implementationClass = "AndroidLibraryConventionPlugin"
-        }
-        register("androidCompose") {
-            id = "myapp.android.compose"
-            implementationClass = "AndroidComposeConventionPlugin"
-        }
+        create("libs") { from(files("../gradle/libs.versions.toml")) }
     }
 }
 ```
 
----
-
-## Step 4: Write Convention Plugins
-
-### Application Plugin
-
-```kotlin
-// AndroidApplicationConventionPlugin.kt
-import com.android.build.api.dsl.ApplicationExtension
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.kotlin.dsl.configure
-
-class AndroidApplicationConventionPlugin : Plugin<Project> {
-    override fun apply(target: Project) {
-        with(target) {
-            pluginManager.apply("com.android.application")
-            pluginManager.apply("org.jetbrains.kotlin.android")
-
-            extensions.configure<ApplicationExtension> {
-                compileSdk = 35
-                defaultConfig {
-                    minSdk = 26
-                    targetSdk = 35
-                }
-            }
-
-            extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
-                jvmToolchain(21)
-            }
-        }
-    }
-}
-```
-
-### Library Plugin
-
-```kotlin
-// AndroidLibraryConventionPlugin.kt
-import com.android.build.api.dsl.LibraryExtension
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.kotlin.dsl.configure
-
-class AndroidLibraryConventionPlugin : Plugin<Project> {
-    override fun apply(target: Project) {
-        with(target) {
-            pluginManager.apply("com.android.library")
-            pluginManager.apply("org.jetbrains.kotlin.android")
-
-            extensions.configure<LibraryExtension> {
-                compileSdk = 35
-                defaultConfig.minSdk = 26
-            }
-
-            extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
-                jvmToolchain(21)
-            }
-        }
-    }
-}
-```
-
-### Compose Plugin
-
-```kotlin
-// AndroidComposeConventionPlugin.kt
-import com.android.build.api.dsl.CommonExtension
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.kotlin.dsl.getByType
-
-class AndroidComposeConventionPlugin : Plugin<Project> {
-    override fun apply(target: Project) {
-        with(target) {
-            pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
-
-            val extension = extensions.getByType<CommonExtension<*, *, *, *, *, *>>()
-            extension.buildFeatures.compose = true
-        }
-    }
-}
-```
-
----
-
-## Step 5: Declare Custom Plugins in Version Catalog
+**2. Declare the convention-plugin ids in `[plugins]` with `version = "unspecified"`** — otherwise `alias(libs.plugins.myapp.android.library)` in a module file doesn't resolve (Gradle treats it as a versioned external plugin and fails to find it). The `id` here must match the one you `register(...)`:
 
 ```toml
 # gradle/libs.versions.toml
@@ -203,59 +32,25 @@ myapp-android-library     = { id = "myapp.android.library", version = "unspecifi
 myapp-android-compose     = { id = "myapp.android.compose", version = "unspecified" }
 ```
 
----
-
-## Step 6: Use in Module Build Files
+**3. Set the JVM toolchain via Kotlin's extension, not `JavaPluginExtension`.** AGP's `com.android.application` / `com.android.library` plugins do **not** apply Gradle's `java` plugin, so `configure<JavaPluginExtension> { ... }` throws *"Extension of type JavaPluginExtension does not exist"* and fails configuration in every module. Use the Kotlin extension inside the convention plugin:
 
 ```kotlin
-// app/build.gradle.kts
-plugins {
-    alias(libs.plugins.myapp.android.application)
-    alias(libs.plugins.myapp.android.compose)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.ksp)
+extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
+    jvmToolchain(21)
 }
-
-android {
-    namespace = "com.example.app"
-    defaultConfig.applicationId = "com.example.app"
-    defaultConfig.versionCode = 1
-    defaultConfig.versionName = "1.0"
-}
-
-dependencies {
-    implementation(projects.feature.home)
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-}
+// equivalently: kotlin { jvmToolchain(21) }
 ```
-
-```kotlin
-// feature/home/build.gradle.kts
-plugins {
-    alias(libs.plugins.myapp.android.library)
-    alias(libs.plugins.myapp.android.compose)
-}
-
-android.namespace = "com.example.feature.home"
-```
-
-The feature module's build file is now just 5 lines. All common configuration lives in the convention plugins.
-
----
 
 ## AGP 9 Implications
 
-The convention plugin examples above target AGP 8. AGP 9 changes several things that hit build logic directly: it drops the standalone `org.jetbrains.kotlin.android` plugin (Kotlin is built into `com.android.application` / `com.android.library`), removes `BaseExtension` and the old variant APIs (`applicationVariants` → `androidComponents { onVariants { … } }`), moves `kotlinOptions {}` to a top-level `kotlin { compilerOptions { … } }`, and makes `kapt` incompatible (migrate to KSP). Any convention plugin that touches these needs updating.
+The convention plugin pattern above targets AGP 8. AGP 9 changes several things that hit build logic directly: it drops the standalone `org.jetbrains.kotlin.android` plugin (Kotlin is built into `com.android.application` / `com.android.library`), removes `BaseExtension` and the old variant APIs (`applicationVariants` → `androidComponents { onVariants { … } }`), moves `kotlinOptions {}` to a top-level `kotlin { compilerOptions { … } }`, and makes `kapt` incompatible (migrate to KSP). Any convention plugin that touches these needs updating.
 
 Defer to the dedicated migration skills for the mechanics rather than duplicating the steps here: Google's [`agp-9-upgrade`](https://github.com/android/skills/tree/main/agp-9-upgrade) for pure-Android projects, JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) for KMP, and this repo's `gradle-build-performance` skill for the kapt → KSP step.
 
----
-
 ## Checklist
 
-- [ ] `build-logic` included as a composite build in root `settings.gradle.kts`
-- [ ] Convention plugins registered with stable IDs and declared in version catalog
-- [ ] `compileSdk`, `minSdk`, Java toolchain defined once in plugins — not in each module
-- [ ] Compose plugin applied via convention — not copy-pasted into each feature module
-- [ ] `build-logic` itself resolves dependencies from the root version catalog
+- [ ] `build-logic` included as a composite build (`includeBuild("build-logic")`) in the root `settings.gradle.kts`
+- [ ] `build-logic/settings.gradle.kts` recreates the `libs` catalog via `from(files("../gradle/libs.versions.toml"))`
+- [ ] Convention plugins `register`-ed with stable ids **and** declared in `[plugins]` with `version = "unspecified"`
+- [ ] JVM toolchain set via `KotlinAndroidProjectExtension` / `kotlin { jvmToolchain() }`, never `JavaPluginExtension`
+- [ ] `compileSdk` / `minSdk` / Compose set once in the plugins, not per module

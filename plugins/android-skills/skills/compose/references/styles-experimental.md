@@ -3,6 +3,8 @@
 > `@ExperimentalFoundationStyleApi` — `androidx.compose.foundation:foundation:1.11.0-alpha06`
 >
 > AOSP source: `compose/foundation/foundation/src/commonMain/kotlin/androidx/compose/foundation/style/`
+>
+> **Freshness:** this is a snapshot of a fast-moving *experimental* API at a single alpha (`1.11.0-alpha06`). Treat every signature and limitation below as version-specific and re-check against the foundation version you actually depend on. In particular, the `dropShadow` / `Shadow`-constructor limitation noted below was alpha06-specific — see those entries.
 
 ## What is the Styles API?
 
@@ -227,7 +229,7 @@ Box(Modifier.styleable(style = gradientStyle)) {
 | `letterSpacing(TextUnit)` | Yes | Propagates to children |
 | `textDecoration(TextDecoration)` | Yes | Underline, strikethrough |
 | `animate(Style { })` | Yes | Smooth spring interpolation |
-| `dropShadow(Shadow)` | No | `Shadow` constructor is internal |
+| `dropShadow(Shadow)` | alpha06: No | `Shadow`'s primary ctor was internal in alpha06; released `androidx.compose.ui.graphics.shadow.Shadow` exposes public `Shadow(radius, color, spread, offset)` ctors — re-check on your version |
 
 ---
 
@@ -440,8 +442,8 @@ A press animation changing only `scale` and `background` never triggers recompos
 - `baselineShift(BaselineShift)`, `lineBreak(LineBreak)`
 - `hyphens(Hyphens)`, `fontSynthesis(FontSynthesis)`
 
-### Shadows (internal constructor in alpha06)
-- `dropShadow(Shadow)`, `innerShadow(Shadow)`
+### Shadows (`Shadow` ctor was internal in alpha06 — public in released foundation)
+- `dropShadow(Shadow)`, `innerShadow(Shadow)` — the `Shadow` type is `androidx.compose.ui.graphics.shadow.Shadow`, which has public `Shadow(radius, color, spread, offset)` constructors in released Compose (only the primary ctor was internal at alpha06).
 
 ### State Functions
 - `pressed(Style)`, `hovered(Style)`, `focused(Style)`
@@ -466,5 +468,5 @@ A press animation changing only `scale` and `background` never triggers recompos
 3. **Multiple Text children in styled box** — all inherit fontSize/fontWeight/contentColor.
 4. **Using `toggleable()` / `selectable()`** — they create their own interactionSource internally. Use `.clickable()` and set state explicitly on `MutableStyleState`.
 5. **Missing `@OptIn(ExperimentalFoundationStyleApi::class)`** — required on all usages.
-6. **Trying to use `dropShadow()`** — `Shadow` constructor is internal in alpha06, won't compile.
+6. **`dropShadow()` at alpha06** — `Shadow`'s constructor was internal then, so it wouldn't compile. Released `androidx.compose.ui.graphics.shadow.Shadow` has public constructors (`Shadow(radius, color, …)`), so this limitation is version-specific — verify against your foundation version before assuming it's blocked.
 7. **No `indication = null` on clickable** — without it you get default ripple on top of your styled feedback.

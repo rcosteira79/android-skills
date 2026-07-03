@@ -32,36 +32,36 @@ When helping with Compose code, follow this checklist:
 
 ### 2. Analyze the design (if visual reference provided)
 - If the user shares a Figma frame, screenshot, or design spec, consult `references/design-to-compose.md`
-- Decompose the design into a composable tree using the 5-step methodology
+- Decompose the design into a composable tree
 - Map design tokens to MaterialTheme, spacing to CompositionLocals
-- Identify animation needs — `references/animation.md` (primitives, specs, decision tree), `references/animation-recipes.md` (recipe cookbook + choreography), or `references/animation-advanced.md` (shared-element, gesture-driven, predictive back, `graphicsLayer`)
+- Identify animation needs — `references/animation.md` (contentKey, phase rule, M3 motion tokens), `references/animation-recipes.md` (shimmer/loading-crossfade + choreography), or `references/animation-advanced.md` (shared-element, predictive back, `drawBehind`-for-color)
 
 ### 3. Consult the right reference
 Read the relevant reference file(s) from `references/` before answering:
 
 | Topic | Reference File |
 |-------|---------------|
-| `@State`, `remember`, `mutableStateOf`, state hoisting, `derivedStateOf`, `snapshotFlow` | `references/state-management.md` |
-| Composable naming, slot pattern, extraction, statefulness, preview annotations, reusability, anti-patterns | `references/view-composition.md` |
-| Screen-level composables, screen structure patterns, adaptive layouts | `references/screen-structure.md` |
-| Modifier ordering, custom modifiers, `Modifier.Node` | `references/modifiers.md` |
-| `LaunchedEffect`, `DisposableEffect`, `SideEffect`, `rememberCoroutineScope` | `references/side-effects.md` |
-| `CompositionLocal`, `LocalContext`, `LocalDensity`, custom locals | `references/composition-locals.md` |
-| `LazyColumn`, `LazyRow`, `LazyGrid`, `Pager`, keys, content types | `references/lists-scrolling.md` |
-| `NavHost`, type-safe routes, deep links, shared element transitions, Navigation 3 (`NavDisplay`, back-stack-as-state) | `references/navigation.md` |
-| `animate*AsState`, `AnimatedVisibility`, `Crossfade`, `updateTransition`, specs (spring/tween/keyframes), decision tree | `references/animation.md` |
-| Animation recipes (shimmer, expandable card, parallax, FAB morph, pull-to-refresh), sequential/parallel/staggered choreography | `references/animation-recipes.md` |
-| Shared element transitions, gesture-driven animations (`Animatable`, `AnchoredDraggable`, `Transformable`), predictive back, `graphicsLayer` performance | `references/animation-advanced.md` |
-| `MaterialTheme`, `ColorScheme`, dynamic color, `Typography`, shapes | `references/theming-material3.md` |
+| State-hoisting boundary (UI-value-drives-business-logic), `derivedStateOf`-capture trap, cross-phase back-writing, durable-state-over-events, `@ReadOnlyComposable` | `references/state-management.md` |
+| Slot / content-API authoring — receiver scopes (`RowScope`), optional (nullable) slots, `XxxDefaults`, slot-vs-boolean-flag | `references/view-composition.md` |
+| Screen/content split (private content composable), framework-state-stays-in-UI (not hoisted to the ViewModel) | `references/screen-structure.md` |
+| Modifier-as-API-contract rules (no hardcoded placement on a reusable root, caller-modifier-first) + chain ordering | `references/modifiers.md` |
+| Effects (`LaunchedEffect`/`DisposableEffect`/`SideEffect`), lifecycle effects (`LifecycleResumeEffect`), effect anti-patterns | `references/side-effects.md` |
+| `compositionLocalOf` vs `staticCompositionLocalOf` (recomposition scope), custom locals, no-mutable-State-in-a-local | `references/composition-locals.md` |
+| LazyList perf traps — `indexOf()`-O(n²), no-new-objects-in-key, `animateItem`, `ReportDrawnWhen`, infinite-scroll trigger | `references/lists-scrolling.md` |
+| Navigation 3 (`NavDisplay`, back-stack-as-state, compose-shape guardrails); type-safe `@Serializable` routes | `references/navigation.md` |
+| `AnimatedContent` contentKey-on-shape, defer-reads-to-latest-phase (lambda modifiers), M3 motion/easing tokens | `references/animation.md` |
+| Animation recipes (shimmer/loading-crossfade), sequential/parallel/staggered choreography | `references/animation-recipes.md` |
+| Shared-element transitions (`sharedBounds`/`sharedElement`/`skipToLookaheadSize`), `drawBehind`-for-animated-color, predictive back | `references/animation-advanced.md` |
+| Extending the theme beyond M3's three slots — custom design tokens via `CompositionLocal` | `references/theming-material3.md` |
 | Touch targets, spacing, canonical layouts, foldables, M3 compliance audit | `android-skills:android-ux` |
 | Recomposition skipping, stability, baseline profiles, benchmarking | `references/performance.md` |
-| Semantics, content descriptions, traversal order, testing | `references/accessibility.md` |
+| Traversal order (`traversalIndex` / `isTraversalGroup`), live-region mode (`Polite` vs `Assertive`) | `references/accessibility.md` |
 | `FocusRequester`, `focusable()`, `focusProperties`, key events, D-pad, TV, keyboard, focus restoration | `references/focus-navigation.md` |
 | Removed/replaced APIs, migration paths from older Compose versions | `references/deprecated-patterns.md` |
 | **Styles API** (experimental): `Style {}`, `MutableStyleState`, `Modifier.styleable()` | `references/styles-experimental.md` |
-| Figma/screenshot decomposition, design tokens, spacing, modifier ordering | `references/design-to-compose.md` |
+| Figma `dropShadow`/`innerShadow` (1.9+, chain placement), spacing/elevation design-token CompositionLocal | `references/design-to-compose.md` |
 | Production crash patterns, defensive coding, state/performance rules | `references/production-crash-playbook.md` |
-| Compose Multiplatform, `expect`/`actual`, resources (`Res.*`), migration | `references/multiplatform.md` |
+| CMP gotchas (`collectAsState`-in-commonMain, commonMain `@Preview` package, Lottie→Kottie, compiler-stability-non-JVM) + Android-only→CMP migration | `references/multiplatform.md` |
 | Desktop (Window, Tray, MenuBar), iOS (UIKitView), Web (ComposeViewport) | `references/platform-specifics.md` |
 
 ### 4. Apply and verify

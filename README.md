@@ -67,19 +67,22 @@ Follow Google's installation instructions: <https://developer.android.com/tools/
 Skills are invoked automatically based on context (e.g. working on Compose code activates the `compose` skill).
 
 ### `android-dev`
-Senior Android engineering knowledge and best practices for Android and KMP projects — architecture, code quality, MVI event naming, four-bucket UiState modeling, and `Channel(BUFFERED)` vs `SharedFlow(replay = 0)` rationale for one-shot effects.
+The baseline for Android and KMP work — house defaults (DI, async, JSON, images, networking, module boundaries), routing to the specialised skills, the greenfield MVVM state/effect UI convention, four-bucket UiState modeling, and `Channel(BUFFERED)` over `SharedFlow(replay = 0)` for one-shot effects.
 
 > Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
 
+### `modularization`
+Visibility discipline for multi-module Android/Kotlin projects — declare everything at the lowest visibility that still compiles (`private` → `internal` → `public`), keep DI-bound implementation classes `internal` behind `public` interfaces, and treat widening to `public` as a decision that requires a real cross-module consumer.
+
 ### `android-testing`
-Test-driven development for Android/KMP — extends TDD with Android's three-tier test model, fake-first strategy, coroutine testing, Compose UI testing, and Roborazzi screenshot testing.
+Test-first discipline for Android/KMP plus the Android test traps — Compose-test dispatching (`StandardTestDispatcher` default, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, and animation/screenshot determinism.
 
 > Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
-> Granular tool references (Mockito, MockK, `runTest`, Turbine, Robolectric, Espresso, UiAutomator, Gradle Managed Devices, `kotlin.test`) cross-reference the `jvm-tests`, `instrumentation`, and `kotlin` sets of [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills).
+> Granular tool coverage (Mockito, MockK, `runTest`, Turbine, Robolectric, Espresso, UiAutomator, Gradle Managed Devices, `kotlin.test`) is delegated to the `jvm-tests`, `instrumentation`, and `kotlin` sets of [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills); test-stack bootstrapping to Google's [`testing-setup`](https://github.com/android/skills/tree/main/testing/testing-setup).
 
 ### `android-ux`
-Material Design 3 UX principles for Android — touch targets (48×48dp), 8dp spacing grid, navigation patterns (Bottom Bar, Rail, Drawer), canonical layouts (Feed, List-Detail, Supporting Pane), foldable postures (tabletop, book mode), M3 contrast levels, safe area handling, accessibility, animation timing, M3 motion duration tokens, keyboard input types, and an M3 compliance audit that scores screens across 10 categories with grep-based quick checks.
+Material Design 3 UX principles for Android — foldable postures (tabletop, book mode), M3 contrast levels (`Hct`/`SchemeContent`), M3 motion duration tokens and reduced motion, and an M3 compliance audit that scores screens across 10 categories (color, typography, shape, elevation, components, layout/spacing, navigation, motion, accessibility, theming) with grep-based quick checks.
 
 > Inspired by [material-3-skill](https://github.com/hamen/material-3-skill)
 
@@ -94,14 +97,14 @@ Fetch and verify Android source code — AOSP platform internals (`@hide` APIs, 
 > This skill is a zero-setup fallback. For enhanced capabilities (local source sync, sub-10ms Tree-sitter parsing, method-level extraction, class hierarchy, LSP), install [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp) separately — the skill will use it automatically when available.
 
 ### `kotlin-coroutines`
-Dispatcher selection, scope management, structured concurrency, cancellation, exception handling, and Android/KMP async patterns. Includes the DispatcherProvider pattern for testable dispatcher injection.
+Scope management, structured concurrency, cancellation, and exception handling in Android/KMP — centered on scope ownership (prefer `suspend fun`, let the caller own the scope) and exception discipline that doesn't break cancellation.
 
 > Incorporates material from [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
 
 > Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
 ### `kotlin-flows`
-Flow type selection (`Flow`/`StateFlow`/`SharedFlow`), operator chains, callback bridging, lifecycle-safe collection, Channel migration, and UI state management.
+Flow traps and semantic edge cases — `Channel` vs `SharedFlow` one-shot event semantics, callback bridging (`callbackFlow` + `awaitClose`), retry attempt guards, `.catch` scope and the `CancellationException` trap, side effects outside transforms, and explicit backing fields (Kotlin 2.4+).
 
 > Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
 
@@ -118,14 +121,14 @@ Triggered only when you explicitly ask to migrate. Assesses complexity, maps RxJ
 > Incorporates material from [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
 
 ### `android-retrofit`
-Retrofit setup for Android — service interface patterns (`@GET`, `@POST`, `@Path`, `@Query`, `@Body`), coroutines integration, OkHttp configuration, Hilt module, and error handling in the repository layer.
+Retrofit setup for Android — `suspend` service functions returning the body directly (`Response<T>` only when you need status/headers/error body), the auth-interceptor throw-vs-proceed decision, loose-JSON `kotlinx.serialization` config, and error mapping at the repository boundary.
 
 > Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
 
 ### `kmp-ktor`
-Ktor client setup for KMP and Android — per-platform engine selection (OkHttp/Darwin/CIO), `kotlinx.serialization` configuration, bearer token auth with refresh via the `Auth` plugin, plugin install order, `MockEngine` testing, error mapping at the repository boundary, the advanced `safeRequest` + sealed `ApiResult<T>` pattern, and WebSocket/SSE support.
+Ktor client configuration traps for KMP and Android — plugin install order (`HttpRequestRetry` before `HttpTimeout`), `encodeDefaults = true` and the vanishing-constant-field trap, `expectSuccess` consistency, bearer refresh with `markAsRefreshTokenRequest()`, WebSocket/SSE via the serialization converter, `MockEngine` testing, and error mapping at the repository boundary.
 
-> Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill). The plugin install order rule (`ContentNegotiation → Auth → HttpRequestRetry → HttpTimeout → ContentEncoding`), `expectSuccess` decision table, sealed `ApiResult<T>` advanced alternative with `safeRequest`, and WebSockets/SSE sections absorbed from the upstream.
+> Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill). The plugin install order rule (`ContentNegotiation → Auth → HttpRequestRetry → HttpTimeout → ContentEncoding`), `expectSuccess` guidance, the sealed `ApiResult<T>` + `safeRequest` alternative, and the WebSockets/SSE section absorbed from the upstream.
 
 ### `kmp-boundaries`
 Designing Kotlin Multiplatform boundaries — choosing between `expect`/`actual`, common interfaces with platform bindings, or separate platform screens. Covers capability granularity (split by capability, not one `Platform` object), the thin-actuals rule, source-set hierarchies (`skikoMain`, `appleMain`), Compose Multiplatform leaf positioning, AGP 9 KMP library plugin constraints, and a dedicated iOS Swift interop reference (Kotlin↔Swift naming, type bridging, SKIE, sealed-class exhaustiveness, `UIHostingController` embedding).
@@ -135,12 +138,12 @@ Designing Kotlin Multiplatform boundaries — choosing between `expect`/`actual`
 > The iOS Swift interop reference (Kotlin → Swift naming, type bridging, SKIE async/AsyncSequence, exhaustive sealed-class switches with `onEnum(of:)`, `ComposeUIViewController` / `UIKitViewController` with `UIHostingController` for embedding SwiftUI in Compose, and iOS API design rules like `@HiddenFromObjC` and `isStatic`) adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
 
 ### `android-data-layer`
-Data layer implementation — Repository pattern as single source of truth, Room DAOs with `Flow`, KMP Room setup (`@ConstructedBy`, `BundledSQLiteDriver`, per-target KSP), offline-first strategies (stale-while-revalidate, outbox pattern), and model mapping between DTO/entity/domain types.
+Data layer implementation — the layered error-propagation model (repository as the error boundary, sealed `DataError`, `Result` placement with and without a domain layer) and KMP Room setup (`@ConstructedBy`, `BundledSQLiteDriver`, per-target KSP).
 
 > Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills). Room KMP setup section (`@ConstructedBy` + `expect object`, `BundledSQLiteDriver`, `setQueryCoroutineContext`, per-target KSP wiring) adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill).
 
 ### `coil-compose`
-Image loading in Compose with Coil — `AsyncImage` vs `SubcomposeAsyncImage` vs `rememberAsyncImagePainter`, `ImageRequest` configuration, performance in lazy lists, and Hilt setup for a shared `ImageLoader`.
+Image loading in Compose and CMP with Coil 3 — the KMP specifics (`LocalPlatformContext`, `SingletonImageLoader.setSafe`, `coil-compose` vs `coil-compose-core`) and two lazy-list performance guardrails (never `SubcomposeAsyncImage` in lists; `rememberAsyncImagePainter` needs an explicit size).
 
 > Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
 
@@ -155,7 +158,7 @@ Gradle build optimisation — Build Scans, configuration cache, build cache, kap
 > Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
 
 ### `datastore`
-Jetpack DataStore for Android and KMP — Preferences vs Typed selection, KMP factory with per-platform file paths (Android `filesDir`, iOS `NSFileManager`, JVM `~/.appname/`), all preference key types, `SharedPreferences` migration, `Serializer<T>` with `corruptionHandler` for typed stores, DI singletons (Koin + Hilt), and repository / MVI integration.
+Jetpack DataStore for Android and KMP — Preferences vs Typed vs Room selection, the two error traps (`IOException`-specific `.catch`; `CorruptionException` + `ReplaceFileCorruptionHandler` for typed stores), and the KMP factory with per-platform file paths (Android `filesDir`, iOS `NSFileManager`, JVM `~/.appname/`).
 
 > Adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)'s DataStore reference
 

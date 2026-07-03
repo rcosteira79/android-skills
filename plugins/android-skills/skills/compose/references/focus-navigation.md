@@ -232,7 +232,7 @@ Dialog(onDismissRequest = onDismiss) {
 
 ## TV and androidx.tv.material3
 
-Prefer `androidx.tv:tv-material` / `tv-foundation` over regular Material 3 — the TV components ship focus-aware visuals (rings, scale, elevation) and integrate with the leanback navigation model. Gotchas:
+For Android TV, prefer the TV-tuned components in `androidx.tv:tv-material` (package `androidx.tv.material3`) over regular Material 3 — they ship focus-aware visuals (rings, scale, elevation) and integrate with the leanback navigation model. For lists, use **Compose Foundation's `LazyColumn`/`LazyRow`**, which support D-pad focus on TV — do **not** use `androidx.tv:tv-foundation`'s `TvLazyColumn`/`TvLazyRow`/`TvLazyListState`: those lazy-list APIs are deprecated and have been removed from `androidx.tv.foundation` upstream. Gotchas:
 
 - **Touch targets don't apply** — D-pad jumps don't need 48dp; visual focus indication (ring/scale/glow) matters more.
 - **No hover on TV** — `hover ≠ focus`.
@@ -245,47 +245,17 @@ Prefer `androidx.tv:tv-material` / `tv-foundation` over regular Material 3 — t
 
 ## Testing Focus
 
-Drive the same input model users use — a click test on a TV/keyboard UI proves nothing.
+Drive the same input model users use — a click test on a TV/keyboard UI proves nothing. Use `performKeyInput { keyDown(Key.DirectionDown); keyUp(...) }` and assert ownership with `assertIsFocused()` (screenshot tests are for the *appearance* of focus — ring/scale/elevation — not ownership).
 
 ```kotlin
-@Test
-fun `D-pad down from header focuses first item`() {
+@Test fun `D-pad down from header focuses first item`() {
     composeTestRule.setContent { AppTheme { BrowseScreen(uiState = previewSuccessState()) } }
-    composeTestRule.onNodeWithTag("header").performKeyInput {
-        keyDown(Key.DirectionDown); keyUp(Key.DirectionDown)
-    }
+    composeTestRule.onNodeWithTag("header").performKeyInput { keyDown(Key.DirectionDown); keyUp(Key.DirectionDown) }
     composeTestRule.onNodeWithTag("first-item").assertIsFocused()
 }
-
-@Test
-fun `search screen focuses query field on entry`() {
-    composeTestRule.setContent { AppTheme { SearchScreen(onQueryChange = {}) } }
-    composeTestRule.onNodeWithTag("search-field").assertIsFocused()
-}
 ```
 
-Restoration test — proves id-not-index by shuffling (same ids, new order):
-
-```kotlin
-@Test
-fun `refreshing list restores focus to previously-focused article by id`() {
-    val initial = previewArticles()
-    val refreshed = initial.shuffled()
-    composeTestRule.setContent {
-        var articles by remember { mutableStateOf(initial) }
-        Column {
-            Button(onClick = { articles = refreshed }) { Text("Refresh") }
-            ArticleList(articles = articles.toImmutableList())
-        }
-    }
-    composeTestRule.onNodeWithTag("article-${initial[2].id}").performClick()
-    composeTestRule.onNodeWithText("Refresh").performClick()
-    composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag("article-${initial[2].id}").assertIsFocused()
-}
-```
-
-Use `assertIsFocused()` to assert *which* node owns focus; screenshot tests are for the *appearance* of focus (ring/scale/elevation), not ownership. See `android-skills:android-testing` for the broader test-shape decision.
+The load-bearing restoration test proves **id-not-index**: focus an item, refresh with a `shuffled()` list (same ids, new order), assert the *same id* is focused again. See `android-skills:android-testing` for the broader test-shape decision.
 
 ## Review Red Flags
 
@@ -297,11 +267,6 @@ Use `assertIsFocused()` to assert *which* node owns focus; screenshot tests are 
 - A modal opens without requesting focus on a child inside it.
 - Lazy-list refresh with no restoration recipe.
 
-## Resources
-
-- Compose focus: https://developer.android.com/develop/ui/compose/touch-input/focus
-- TV with Compose: https://developer.android.com/develop/ui/compose/tv
-- Key events: https://developer.android.com/develop/ui/compose/touch-input/handling-key-events
-- androidx.tv.material3: https://developer.android.com/jetpack/androidx/releases/tv
+## See also
 
 For test-shape decisions and semantics-first selectors, see `android-skills:android-testing`. For predictive-back animation, see `compose/references/animation.md`. For the semantics layer (separate from focus traversal), see `compose/references/accessibility.md`.

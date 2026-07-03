@@ -517,251 +517,38 @@ LazyColumn {
 
 ---
 
-## 9. Production State Rules
+## 9. Per-Item `rememberSaveable` → `TransactionTooLargeException`
 
-These rules prevent the most common state-related crashes and architectural mistakes in production Compose applications.
-
-### Rule 1: mutableStateOf ONLY in Composables, Never in ViewModels
+`rememberSaveable` serializes to the `Bundle`, which round-trips through binder for `onSaveInstanceState` — and binder enforces a ~1MB IPC transaction limit. Using it for per-item state inside a `LazyColumn` packs every item's value into that one Bundle, blows past the limit, and crashes.
 
 ```kotlin
-// BAD: Compose state in ViewModel couples VM to Compose runtime
-class ProfileViewModel : ViewModel() {
-    var name by mutableStateOf("")  // Don't do this
-}
-
-// GOOD: Use coroutine-native state in ViewModel
-class ProfileViewModel : ViewModel() {
-    private val _name = MutableStateFlow("")
-    val name: StateFlow<String> = _name.asStateFlow()
-}
-```
-
-ViewModels should expose `StateFlow` (via `MutableStateFlow` + `asStateFlow()`). Compose state (`mutableStateOf`) belongs in `@Composable` functions and state holder classes annotated with `@Stable`. This keeps ViewModels testable without the Compose runtime.
-
-### Rule 2: Choose Between Channel and SharedFlow Based on Delivery Guarantees
-
-One-shot UI events (navigation, snackbars, dialogs) need a delivery mechanism from the ViewModel. The right choice depends on whether events can be missed:
-
-- **`Channel`** — exactly-once delivery to one consumer. `send()` on a default (rendezvous) channel **suspends** until a receiver is ready; on a buffered channel, elements are preserved in the buffer. Events are never silently dropped (except `CONFLATED`). Use when a missed event is a visible bug (navigation commands, one-time side effects).
-- **`SharedFlow(replay = 0)`** — broadcast to all active collectors. `emit()` **silently drops** the value when no collectors exist. Use SharedFlow only when missing an event during brief inactivity is acceptable, or when the collector is guaranteed to be active for the entire relevant window (e.g. `LaunchedEffect(Unit)` which collects for the composable's full composition lifetime).
-
-**Never use `collectAsStateWithLifecycle` for events.** It preserves the last emission as a `State<T>` value, which means the event persists as state and can be re-consumed on recomposition. Events are fire-once — collect them with `collect` inside a `LaunchedEffect`, not as state. Reserve `collectAsStateWithLifecycle` for `StateFlow` (UI state that should always reflect the latest value).
-
-Also note that `repeatOnLifecycle` stops collection when the lifecycle drops below the target state (default: `STARTED`). During that window there are zero collectors on a SharedFlow and emissions are lost. Both `repeatOnLifecycle` and `collectAsStateWithLifecycle` accept a configurable `minActiveState` / lifecycle state parameter.
-
-```kotlin
-// Channel — exactly-once, never drops (default rendezvous suspends sender until collected)
-class OrderViewModel : ViewModel() {
-    private val _events = Channel<UiEvent>()
-    val events = _events.receiveAsFlow()
-
-    fun onAction() {
-        viewModelScope.launch {
-            _events.send(UiEvent.NavigateToConfirmation) // suspends if no collector
-        }
+// BAD — saved for every message in the list; Bundle size explodes -> TransactionTooLargeException
+LazyColumn {
+    items(messages, key = { it.id }) { message ->
+        var expanded by rememberSaveable { mutableStateOf(false) }   // ✗ per-item saved state
     }
 }
 
-// SharedFlow — broadcast, drops when no collectors exist
-class OrderViewModel : ViewModel() {
-    private val _events = MutableSharedFlow<UiEvent>()
-    val events: SharedFlow<UiEvent> = _events.asSharedFlow()
-
-    fun onAction() {
-        viewModelScope.launch {
-            _events.emit(UiEvent.ShowSnackbar("Done")) // lost if no collector
-        }
+// GOOD — rememberSaveable at screen level, plain remember inside items
+var searchQuery by rememberSaveable { mutableStateOf("") }           // screen-level: fine
+LazyColumn {
+    items(messages, key = { it.id }) { message ->
+        var expanded by remember { mutableStateOf(false) }           // per-item: plain remember
     }
 }
 ```
 
-See `android-skills:kotlin-flows` for the full trade-off analysis and guidance on when to ask the user.
+The mechanism: `rememberSaveable` writes to a `SaveableStateRegistry`; at save time the registry packs every registered value into the `Bundle` that binder round-trips for `onSaveInstanceState`, and binder enforces the ~1MB limit.
 
-### Rule 3: rememberSaveable Only at NavGraph Level
+**Compose Multiplatform:** the binder ~1MB limit is Android-only (Desktop/iOS serialize to other storage), but the per-item rule holds everywhere — per-item saved state scales linearly with list size, defeats recycling, and pollutes saved state with values that should be hoisted or derived.
 
-```kotlin
-// BAD: rememberSaveable deep in a list item (bloats saved state bundle)
-@Composable
-fun ChatMessageItem(message: Message) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    // Saved for every message in the list -- Bundle size explodes
-}
-
-// GOOD: rememberSaveable at screen level, remember inside items
-@Composable
-fun ChatScreen(viewModel: ChatViewModel) {
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-
-    LazyColumn {
-        items(messages, key = { it.id }) { message ->
-            var expanded by remember { mutableStateOf(false) }
-            ChatMessageItem(message, expanded)
-        }
-    }
-}
-```
-
-`rememberSaveable` serializes to the `Bundle`, which has a ~1MB limit on Android. Using it inside list items for per-item state quickly exceeds this limit and causes `TransactionTooLargeException`.
-
-The mechanism: `rememberSaveable` writes to a `SaveableStateRegistry` provided through a `CompositionLocal`. At save time, the registry walks all registered savers and packs their values into a `Bundle`. On Android, that `Bundle` is round-tripped through binder for `onSaveInstanceState` — and binder enforces the ~1MB IPC transaction limit, which is where the crash comes from.
-
-**Compose Multiplatform:** `rememberSaveable` works in `commonMain` via the same `SaveableStateRegistry` mechanism, but the binder limit is Android-only. Desktop and iOS targets serialize to other storage (typically a file in the app's data directory), so a 5MB `Bundle` won't crash on Desktop — but the per-item rule still holds across all platforms because per-item saved state is the wrong shape regardless of the persistence mechanism: it scales linearly with list size, defeats item recycling, and pollutes saved state with values that should be derived or hoisted.
-
-### Rule 4: snapshotFlow + distinctUntilChanged for Reactive Scroll
-
-```kotlin
-// GOOD: efficient reactive scroll position monitoring
-@Composable
-fun ScrollAwareList(listState: LazyListState) {
-    val isScrolledPast = remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 0 }
-    }
-
-    // For side effects based on scroll position
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .distinctUntilChanged()
-            .collect { index ->
-                // Analytics, FAB visibility, header collapse
-            }
-    }
-}
-```
-
-`snapshotFlow` converts Compose snapshot state to a `Flow`, and `distinctUntilChanged()` prevents redundant emissions. Never poll scroll state in a recomposition-driven loop.
-
-### Rule 5: stateIn() with map() for Derived Flows
-
-```kotlin
-// GOOD: derive UI state from repository flow
-class DashboardViewModel(repository: DashboardRepository) : ViewModel() {
-    val uiState: StateFlow<DashboardUiState> = repository.dashboardData
-        .map { data ->
-            DashboardUiState(
-                totalSales = data.sales.sumOf { it.amount },
-                topProduct = data.products.maxByOrNull { it.revenue }?.name.orEmpty(),
-                isLoading = false
-            )
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = DashboardUiState()
-        )
-}
-```
-
-`SharingStarted.WhileSubscribed(5_000)` keeps the upstream active for 5 seconds after the last subscriber detaches, surviving configuration changes without restarting the flow. Combine with `.map()` for derived transformations instead of creating separate `derivedStateOf` in the UI.
+> The other "production state rules" once listed here — `mutableStateOf` belongs in composables not ViewModels; `Channel` vs `SharedFlow` for one-shot events; `snapshotFlow + distinctUntilChanged` for reactive scroll; `stateIn + map` for derived flows — are general state/flow guidance rather than crash patterns, and live in their canonical homes: `android-skills:kotlin-flows` and `compose/references/state-management.md`.
 
 ---
 
-## 10. Production Performance Rules
+## 10. Production performance rules
 
-### Rule 1: @Stable on UI State, @Immutable on Data Models
-
-```kotlin
-// Data models from network/database: truly immutable
-@Immutable
-data class Product(
-    val id: Long,
-    val name: String,
-    val price: Double,
-    val imageUrl: String
-)
-
-// UI state with observable mutations: stable contract
-@Stable
-data class CartUiState(
-    val items: List<Product> = emptyList(),
-    val total: Double = 0.0,
-    val isLoading: Boolean = false
-)
-```
-
-`@Immutable` tells the compiler all properties will never change after construction. `@Stable` promises that changes will be notified to the Compose runtime. Misuse (e.g., `@Immutable` on a class with `var` properties) causes skipped recompositions and stale UI.
-
-### Rule 2: Canvas Always Explicitly Sized
-
-```kotlin
-// BAD: Canvas with fillMaxSize and no parent constraints
-Canvas(modifier = Modifier.fillMaxSize()) { /* may get zero size */ }
-
-// GOOD: explicit dimensions
-Canvas(modifier = Modifier.size(200.dp)) { ... }
-
-// GOOD: explicit height with flexible width
-Canvas(modifier = Modifier.fillMaxWidth().height(120.dp)) { ... }
-
-// GOOD: aspect ratio
-Canvas(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { ... }
-```
-
-See Section 3 for detailed crash scenarios. Explicit sizing prevents zero-size draw calls.
-
-### Rule 3: ReportDrawnWhen for Startup Signals
-
-```kotlin
-@Composable
-fun HomeScreen(viewModel: HomeViewModel) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-
-    ReportDrawnWhen { state.isContentReady }
-
-    when {
-        state.isLoading -> ShimmerLoadingList()
-        state.isContentReady -> ContentList(state.items)
-    }
-}
-```
-
-`ReportDrawnWhen` signals to the system (and performance monitoring tools) when the screen has meaningful content. This is critical for accurate Time-To-Initial-Display (TTID) and Time-To-Full-Display (TTFD) metrics.
-
-### Rule 4: R8 Strip Previews and Semantics in Release
-
-```kotlin
-// In build.gradle.kts (app module)
-android {
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-}
-```
-
-In `proguard-rules.pro`, R8 automatically strips `@Preview` composables from release builds. For semantics stripping in production (accessibility data you don't need in release), use `Modifier.clearAndSetSemantics {}` selectively rather than blanket removal.
-
-### Rule 5: Pragmatic Collection Stability
-
-```kotlin
-// When a composable receives a List that you know won't mutate:
-@Suppress("ComposeUnstableCollections")
-@Composable
-fun ProductGrid(
-    products: List<Product>,  // Compiler sees List as unstable
-    onProductClick: (Product) -> Unit
-) {
-    LazyVerticalGrid(columns = GridCells.Fixed(2)) {
-        items(products, key = { it.id }) { product ->
-            ProductCard(product, onProductClick)
-        }
-    }
-}
-```
-
-The Compose compiler treats `List`, `Map`, and `Set` as unstable because they are interfaces that could be backed by mutable implementations. Options to handle this:
-
-1. **`@Suppress("ComposeUnstableCollections")`** -- pragmatic, per-function opt-out
-2. **Wrap in `@Immutable` holder** -- `@Immutable data class ProductList(val items: List<Product>)`
-3. **Use `kotlinx.collections.immutable`** -- `ImmutableList<Product>` is recognized as stable
-4. **Compose compiler stability config file** -- declare stable classes globally
-
-Choose based on team convention. Option 1 is fastest for existing codebases. Option 3 is cleanest for new projects.
+The Compose performance rules (`@Stable`/`@Immutable` boundary, explicitly-sized `Canvas`, `ReportDrawnWhen`, R8 release stripping, pragmatic collection stability) live in `compose/references/performance.md`. Not duplicated here — this playbook keeps the crash patterns (sections 1-8) and the production *state* rules (section 9).
 
 ---
 
@@ -777,5 +564,4 @@ Choose based on team convention. Option 1 is fastest for existing codebases. Opt
 | `collectAsState` in background | Battery drain, stale flash | 6 |
 | Unguarded shimmer drawing | Crash in SubcomposeLayout | 7 |
 | Key collision across item types | IllegalArgumentException | 8 |
-| `mutableStateOf` in ViewModel | Untestable, lifecycle mismatch | 9 |
-| Canvas with `fillMaxSize()` only | Zero-size draw crash | 10 |
+| Per-item `rememberSaveable` | `TransactionTooLargeException` (Bundle >1MB) | 9 |

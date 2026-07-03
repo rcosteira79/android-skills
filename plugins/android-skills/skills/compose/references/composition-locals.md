@@ -1,231 +1,34 @@
-# CompositionLocals: Implicit Data Passing in Jetpack Compose
+# CompositionLocals
 
-CompositionLocals provide a way to pass data implicitly down the composition tree without threading it through every function parameter. They're analogous to SwiftUI's `@Environment`.
+CompositionLocals pass data implicitly down the composition tree (`compositionLocalOf` / `staticCompositionLocalOf`, provided via `CompositionLocalProvider`, read through `.current`). This reference covers the recomposition-scope and mutable-state traps, not the basics of the built-in locals or providing values.
 
-## What Are CompositionLocals?
+## `compositionLocalOf` vs `staticCompositionLocalOf` — the recomposition-scope trap
 
-A CompositionLocal is a slot in the composition that holds a value accessible to any descendant composable without explicit parameter passing. Values are provided using `CompositionLocalProvider` and accessed via `current`.
+The choice is not stylistic; it changes **what recomposes when the value changes**.
 
-```kotlin
-val localAppTheme = compositionLocalOf { "Light" }
+- **`compositionLocalOf`** tracks reads — when the value changes, only composables that actually read `.current` recompose. Pay the per-read bookkeeping when the value *changes during composition*: user session, locale, a scroll-driven value.
+- **`staticCompositionLocalOf`** does NOT track reads — changing the value invalidates the **entire subtree** under the provider. Cheaper per read, but one flip recomposes everything in scope. Use it only for values that effectively never change after they're set: theme, a spacing scale, DI-provided singletons.
 
-@Composable
-fun MyScreen() {
-  CompositionLocalProvider(localAppTheme provides "Dark") {
-    DescendantComposable() // Can access "Dark" via localAppTheme.current
-  }
-}
+Picking `staticCompositionLocalOf` for a value that updates at runtime is a performance bug — every change recomposes the whole subtree. Picking `compositionLocalOf` for a truly-static theme token just adds read-tracking overhead for nothing. This is the same decision `compose/references/theming-material3.md` and `compose/references/design-to-compose.md` route here for when extending the theme with custom tokens.
 
-@Composable
-fun DescendantComposable() {
-  Text(localAppTheme.current) // Reads "Dark"
-}
-```
+For a default that must be **computed** lazily from the environment when no provider is active, use `compositionLocalWithComputedDefaultOf { … }` — the lambda runs per read, which avoids capturing state the way `compositionLocalOf { lazy { … } }` would.
 
-**Source:** `androidx/compose/runtime/runtime/src/commonMain/kotlin/androidx/compose/runtime/CompositionLocal.kt`
+## Never store mutable State in a CompositionLocal
 
-## compositionLocalOf vs staticCompositionLocalOf
-
-The key difference is the **recomposition scope** when a value changes.
-
-### compositionLocalOf
-Tracks reads. When the value changes, only composables that **actually read** `.current` are invalidated. More efficient when the value changes; modest bookkeeping overhead per read.
+Providing a `MutableState` (or any mutable holder) through a local breaks recomposition: descendants capture the container once and don't re-run when its contents change.
 
 ```kotlin
-val LocalUserPreferences = compositionLocalOf { UserPreferences() }
-```
+// ✗ state changes won't propagate correctly
+val LocalCounter = staticCompositionLocalOf { mutableStateOf(0) }
 
-Use for values that may change during composition: user session, locale, scroll-driven state.
-
-### staticCompositionLocalOf
-Does NOT track reads. When the value changes, the **entire subtree** below the `CompositionLocalProvider` is invalidated and recomposed. Cheaper per read, but a single change blows away everything in scope.
-
-```kotlin
-val LocalAppVersion = staticCompositionLocalOf { "1.0.0" }
-```
-
-Use only for values that truly never change during composition: theme, spacing, DI-provided dependencies. If the value flips, the cost is recomposing the whole subtree — which is fine when "the whole subtree" is the right unit of update for a theme switch, but a bug for anything finer-grained.
-
-### compositionLocalWithComputedDefaultOf
-Introduced for computed default values. The lambda is called each time the value is read when no provider is active.
-
-```kotlin
-val LocalResources = compositionLocalWithComputedDefaultOf { context.resources }
-```
-
-This is more efficient than `compositionLocalOf { lazy { ... } }` because it avoids capturing state unnecessarily.
-
-## Built-In CompositionLocals
-
-The Compose runtime and UI libraries provide standard locals:
-
-| Local | Type | Purpose |
-|-------|------|---------|
-| `LocalContext` | `Context` | Android Context (requires AndroidCompositionLocals) |
-| `LocalConfiguration` | `Configuration` | Screen size, orientation, density |
-| `LocalDensity` | `Density` | Pixel density for dp/px conversion |
-| `LocalLayoutDirection` | `LayoutDirection` | LTR/RTL directionality |
-| `LocalView` | `View` | Underlying Android View (if available) |
-| `LocalLifecycleOwner` | `LifecycleOwner` | Activity/Fragment lifecycle |
-| `LocalSavedStateRegistryOwner` | `SavedStateRegistryOwner` | For state persistence |
-
-**Source:** `androidx/compose/ui/ui/src/androidMain/kotlin/androidx/compose/ui/platform/AndroidCompositionLocals.android.kt`
-
-```kotlin
-@Composable
-fun MyComposable() {
-  val context = LocalContext.current
-  val density = LocalDensity.current
-  val config = LocalConfiguration.current
-
-  Text("Screen width: ${config.screenWidthDp}dp")
-}
-```
-
-## Providing Values with CompositionLocalProvider
-
-Provide one or multiple local values:
-
-```kotlin
-// Single local
-CompositionLocalProvider(LocalUserPreferences provides user) {
-  Content()
-}
-
-// Multiple locals
-CompositionLocalProvider(
-  LocalUserPreferences provides user,
-  LocalTheme provides darkTheme,
-  LocalLanguage provides "en"
-) {
-  Content()
-}
-```
-
-Values are **scoped** to descendants only:
-
-```kotlin
-CompositionLocalProvider(LocalUserPreferences provides userA) {
-  ComponentA() // Sees userA
-  CompositionLocalProvider(LocalUserPreferences provides userB) {
-    ComponentB() // Sees userB (overrides)
-  }
-  ComponentC() // Sees userA (original)
-}
-```
-
-## Creating Custom CompositionLocals
-
-Create locals at top level, outside composable functions:
-
-```kotlin
-data class AppTheme(val isDark: Boolean, val colors: Colors)
-
-val LocalAppTheme = compositionLocalOf<AppTheme> {
-  error("AppTheme not provided")
-}
-
-// For nullable defaults
-val LocalOptionalUser = compositionLocalOf<User?> { null }
-```
-
-**When to create a CompositionLocal:**
-- Value is needed by many descendants
-- Threading it as a parameter creates "prop drilling"
-- Value is configuration-like (theme, locale, permissions)
-
-**When NOT to use CompositionLocal:**
-- Only 1–2 levels of composables need it → use parameters
-- Value changes frequently and children need precise control → use State/ViewModel
-- It's a dependency that should be testable → prefer parameters or dependency injection
-
-## Testing with CompositionLocals
-
-Provide test doubles to avoid real implementations:
-
-```kotlin
-@Composable
-fun MyScreen() {
-  val user = LocalUserRepository.current
-  Text(user.name)
-}
-
-// In test
-@Test
-fun testMyScreen() {
-  composeRule.setContent {
-    CompositionLocalProvider(
-      LocalUserRepository provides FakeUserRepository(User("Test User"))
-    ) {
-      MyScreen()
-    }
-  }
-  composeRule.onNodeWithText("Test User").assertExists()
-}
-```
-
-## Anti-Patterns
-
-### ✗ Using CompositionLocal as Generic Dependency Injection
-```kotlin
-// Bad: obscures dependencies, hard to test
-val LocalEverything = compositionLocalOf { AppContainer() }
-
-@Composable
-fun MyScreen() {
-  val container = LocalEverything.current
-  val repo = container.userRepo
-  val cache = container.cache
-}
-```
-
-**Better:** Provide specific locals or pass dependencies as parameters.
-
-### ✗ Reading LocalContext Repeatedly
-```kotlin
-// Inefficient: reads on every recomposition
-@Composable
-fun MyComposable() {
-  val context = LocalContext.current // Reading repeatedly
-  // ...
-}
-```
-
-**Better:** Read once outside the lambda or cache in remember:
-
-```kotlin
-@Composable
-fun MyComposable() {
-  val context = LocalContext.current
-  val effect = remember(context) { /* use context */ }
-}
-```
-
-### ✗ Storing Mutable State in CompositionLocal
-```kotlin
-// Bad: state changes won't trigger recomposition properly
-val LocalCounter = compositionLocalOf { mutableStateOf(0) }
-```
-
-**Better:** Store the State in a parent composable and provide the value, not the State:
-
-```kotlin
+// ✓ hold the State in a parent; provide the VALUE, not the holder
 val LocalCount = compositionLocalOf { 0 }
 
 @Composable
 fun Parent() {
-  var count by remember { mutableStateOf(0) }
-  CompositionLocalProvider(LocalCount provides count) {
-    Child()
-  }
+    var count by remember { mutableStateOf(0) }
+    CompositionLocalProvider(LocalCount provides count) { Child() }
 }
 ```
 
-## Key Takeaways
-
-1. Use `compositionLocalOf` for values that children read and depend on updates
-2. Use `staticCompositionLocalOf` only for truly static values
-3. Prefer parameters over CompositionLocals unless you have significant nesting
-4. Always provide a sensible error default or nullable type
-5. Test by providing fake implementations via `CompositionLocalProvider`
-6. CompositionLocals are not a replacement for proper architecture — use them for configuration and environment data, not general dependency injection
+Provide an immutable snapshot of the value and let the normal provide-on-change flow drive recomposition.
