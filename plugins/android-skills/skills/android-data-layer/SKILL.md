@@ -1,6 +1,6 @@
 ---
 name: android-data-layer
-description: Use when implementing the data layer in Android — Repository pattern, Room local database, offline-first synchronization, and coordinating local and remote sources.
+description: Use when implementing the data layer in Android or KMP — the Repository pattern's layered error-propagation model (repository as the error boundary, sealed DataError, Result placement with and without a domain layer) and Room in commonMain (@ConstructedBy, BundledSQLiteDriver, per-target KSP).
 ---
 
 # Android Data Layer

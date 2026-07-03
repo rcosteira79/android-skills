@@ -113,4 +113,4 @@ Expose `Flow` from shared code; collect per-platform (iOS: SKIE or a `CoroutineS
 
 ## Testing
 
-Flow testing lives in `android-skills:android-testing` — Turbine for hot flows, `backgroundScope` collection, `StateFlow.value` assertions, `MainDispatcherRule`, and the dispatcher/scheduler traps.
+Flow testing lives in `android-skills:android-testing` — read the two-schedulers trap (`runTest` + `MainDispatcherRule` must share one scheduler) before asserting on hot flows.

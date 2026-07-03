@@ -1,6 +1,6 @@
 ---
 name: datastore
-description: Use when persisting key-value preferences or small typed settings on Android or KMP with Jetpack DataStore — Preferences vs Typed (Proto/JSON) selection, KMP factory with per-platform file paths, SharedPreferences migration, serializers with corruption handlers, DI singletons, and repository/MVI integration. Triggers on DataStore, Preferences, PreferenceDataStoreFactory, DataStoreFactory, preferencesDataStore, SharedPreferencesMigration, Serializer, or persistent settings work.
+description: Use when persisting key-value preferences or small typed settings on Android or KMP with Jetpack DataStore — Preferences vs Typed (Proto/JSON) vs Room selection, the IOException and corruption-recovery error traps, serializers with corruption handlers, and the KMP factory with per-platform file paths. Triggers on DataStore, Preferences, PreferenceDataStoreFactory, DataStoreFactory, preferencesDataStore, Serializer, SharedPreferences-to-DataStore migration, or persistent settings work.
 ---
 
 # Jetpack DataStore for Android and KMP

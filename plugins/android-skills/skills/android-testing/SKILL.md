@@ -1,6 +1,6 @@
 ---
 name: android-testing
-description: Use when writing, fixing, or refactoring Android/KMP code in Kotlin — Android's three-tier test model, fake-first strategy, coroutine testing, and Compose UI testing, on a test-first (RED-GREEN-REFACTOR) foundation.
+description: Use when writing, fixing, or refactoring Android/KMP code in Kotlin — a test-first (RED-GREEN-REFACTOR) foundation plus the Android test traps: Compose-test dispatching (StandardTestDispatcher default, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, and animation/screenshot determinism.
 ---
 
 # Android Testing

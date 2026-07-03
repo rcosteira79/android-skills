@@ -32,7 +32,7 @@ When helping with Compose code, follow this checklist:
 
 ### 2. Analyze the design (if visual reference provided)
 - If the user shares a Figma frame, screenshot, or design spec, consult `references/design-to-compose.md`
-- Decompose the design into a composable tree using the 5-step methodology
+- Decompose the design into a composable tree
 - Map design tokens to MaterialTheme, spacing to CompositionLocals
 - Identify animation needs — `references/animation.md` (contentKey, phase rule, M3 motion tokens), `references/animation-recipes.md` (shimmer/loading-crossfade + choreography), or `references/animation-advanced.md` (shared-element, predictive back, `drawBehind`-for-color)
 
@@ -50,9 +50,9 @@ Read the relevant reference file(s) from `references/` before answering:
 | LazyList perf traps — `indexOf()`-O(n²), no-new-objects-in-key, `animateItem`, `ReportDrawnWhen`, infinite-scroll trigger | `references/lists-scrolling.md` |
 | Navigation 3 (`NavDisplay`, back-stack-as-state, compose-shape guardrails); type-safe `@Serializable` routes | `references/navigation.md` |
 | `AnimatedContent` contentKey-on-shape, defer-reads-to-latest-phase (lambda modifiers), M3 motion/easing tokens | `references/animation.md` |
-| Animation recipes (shimmer, expandable card, parallax, FAB morph, pull-to-refresh), sequential/parallel/staggered choreography | `references/animation-recipes.md` |
+| Animation recipes (shimmer/loading-crossfade), sequential/parallel/staggered choreography | `references/animation-recipes.md` |
 | Shared-element transitions (`sharedBounds`/`sharedElement`/`skipToLookaheadSize`), `drawBehind`-for-animated-color, predictive back | `references/animation-advanced.md` |
-| `MaterialTheme`, `ColorScheme`, dynamic color, `Typography`, shapes | `references/theming-material3.md` |
+| Extending the theme beyond M3's three slots — custom design tokens via `CompositionLocal` | `references/theming-material3.md` |
 | Touch targets, spacing, canonical layouts, foldables, M3 compliance audit | `android-skills:android-ux` |
 | Recomposition skipping, stability, baseline profiles, benchmarking | `references/performance.md` |
 | Traversal order (`traversalIndex` / `isTraversalGroup`), live-region mode (`Polite` vs `Assertive`) | `references/accessibility.md` |

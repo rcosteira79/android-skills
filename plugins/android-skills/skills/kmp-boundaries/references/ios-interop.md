@@ -161,7 +161,7 @@ MainViewControllerKt.ComposeWithSwiftUI {
 }
 ```
 
-For direct UIKit views (`MKMapView`, `WKWebView`, `AVCaptureSession`), use `UIKitView(factory = { ... })` from Kotlin — no Swift bridge needed. See `compose/references/multiplatform.md` for the broader Compose-side embedding patterns.
+For direct UIKit views (`MKMapView`, `WKWebView`, `AVCaptureSession`), use `UIKitView(factory = { ... })` from Kotlin — no Swift bridge needed. See `compose/references/platform-specifics.md` for the Compose-side `UIKitView` gotchas (interaction modes).
 
 ---
 

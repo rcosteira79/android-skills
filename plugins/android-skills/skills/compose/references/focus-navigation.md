@@ -249,6 +249,7 @@ Drive the same input model users use — a click test on a TV/keyboard UI proves
 
 ```kotlin
 @Test fun `D-pad down from header focuses first item`() {
+    composeTestRule.setContent { AppTheme { BrowseScreen(uiState = previewSuccessState()) } }
     composeTestRule.onNodeWithTag("header").performKeyInput { keyDown(Key.DirectionDown); keyUp(Key.DirectionDown) }
     composeTestRule.onNodeWithTag("first-item").assertIsFocused()
 }

@@ -77,4 +77,4 @@ Don't use `MainScope()` — it's unstructured (`Dispatchers.Main + SupervisorJob
 
 ## Testing
 
-Coroutine and dispatcher testing — `runTest`, the canonical `MainDispatcherRule`, the two-schedulers trap, `StandardTestDispatcher` vs `UnconfinedTestDispatcher` — lives in `android-skills:android-testing`.
+Coroutine and dispatcher testing lives in `android-skills:android-testing` — notably the two-schedulers trap (`runTest` + `MainDispatcherRule` must share one scheduler) and the `StandardTestDispatcher` default in Compose tests.
