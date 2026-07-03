@@ -32,8 +32,10 @@ Reversed, `HttpTimeout` resolves the request as failed before the retry plugin s
 `kotlinx.serialization` defaults to `encodeDefaults = false`, which **strips any property whose value equals its declared default** from the serialized output. A `jsonrpc: String = "2.0"` (or `version = "1.0"`, `type = "..."`) disappears from the payload; the server rejects every request with a generic "invalid request," and the fix is a one-line flag — found only after hours chasing HTTP-layer red herrings. Always set it for client APIs:
 
 ```kotlin
-Json { ignoreUnknownKeys = true; coerceInputValues = true; encodeDefaults = true }
+val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; encodeDefaults = true }
 ```
+
+This is the single configured instance the whole client shares — `install(ContentNegotiation) { json(json) }` above, and the WebSocket converter below.
 
 ## `expectSuccess` — pick one model, consistently
 
@@ -70,7 +72,7 @@ For real-time transports, install the kotlinx-serialization converter so typed m
 val client = HttpClient(engine) {
     install(WebSockets) {
         pingIntervalMillis = 30_000
-        contentConverter = KotlinxWebsocketSerializationConverter(Json)
+        contentConverter = KotlinxWebsocketSerializationConverter(json)  // the shared configured instance — bare `Json` reverts to encodeDefaults = false
     }
     install(SSE)
 }
