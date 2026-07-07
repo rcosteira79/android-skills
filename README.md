@@ -143,9 +143,9 @@ The skills work standalone, but several integrate with external tools for enhanc
 
 ## Attribution
 
-Several skills were inspired by or built on community work. Skills not listed below are original work.
+These skills are my own work — most written from scratch, then sharpened over many audit passes. Where one drew inspiration, adapted a specific section, or (only in `compose`'s case) started from an existing skill, the credit is below. Anything not listed is fully original.
 
-| Skill(s) | Source |
+| Skill(s) | Inspiration / adapted material |
 |---|---|
 | `android-dev`, `kmp-ktor`, `datastore`, `paging`, `koin` | [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) |
 | `android-retrofit`, `coil-compose`, `rxjava-migration`, `android-gradle-logic`, `gradle-build-performance` | [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) |
@@ -154,7 +154,7 @@ Several skills were inspired by or built on community work. Skills not listed be
 | `android-testing`, `kotlin-flows` | [chrisbanes/skills](https://github.com/chrisbanes/skills) |
 | `kmp-boundaries` | [chrisbanes/skills](https://github.com/chrisbanes/skills); iOS Swift interop from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) |
 | `android-ux` | [material-3-skill](https://github.com/hamen/material-3-skill) |
-| `compose` | [aldefy/compose-skill](https://github.com/aldefy/compose-skill) (rebased on live source verification), with patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills), [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills), and [compose_skill (hamen)](https://github.com/hamen/compose_skill) |
+| `compose` | forked from [aldefy/compose-skill](https://github.com/aldefy/compose-skill), then rebased on live source verification, with patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills), [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills), and [compose_skill (hamen)](https://github.com/hamen/compose_skill) |
 
 ## License
 
