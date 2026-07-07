@@ -152,7 +152,7 @@ Prefer `android layout` over `adb screencap` whenever the question is "what is t
 
 ### Compose Recomposition Bugs
 
-For deeper Compose performance analysis (stability, recomposition skipping, baseline profiles), see `android-skills:compose` → `references/performance.md`.
+For deeper Compose performance analysis (stability, recomposition skipping, baseline profiles), see `android-skills:compose` → `compose/references/performance.md`.
 
 Wrong state or unexpected re-renders:
 
