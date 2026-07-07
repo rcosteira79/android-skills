@@ -1,14 +1,31 @@
+<div align="center">
+
 # Android Skills
 
-Skills for Android and KMP development — covering architecture, data layer, networking (Retrofit, Ktor), persistent storage (Room, DataStore), pagination, dependency injection (Hilt, Koin), testing, debugging, Jetpack Compose, coroutines, flows, Gradle, and RxJava migration. Works as a plugin for Claude Code and Copilot CLI.
+**Android & KMP development skills for Claude Code and Copilot CLI** — architecture, Compose, coroutines, flows, networking, persistence, dependency injection, testing, debugging, and Gradle.
 
-Several skills in this collection were inspired by or built on top of work from the community — specifically [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills), [compose-skill (aldefy)](https://github.com/aldefy/compose-skill), [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill), [chrisbanes/skills](https://github.com/chrisbanes/skills), [material-3-skill](https://github.com/hamen/material-3-skill), [compose_skill](https://github.com/hamen/compose_skill), and [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills). Skills with no attribution tag are original work.
+![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Frcosteira79%2Fandroid-skills%2Fmain%2F.claude-plugin%2Fmarketplace.json&query=%24.metadata.version&label=version&color=3b82f6&prefix=v)
+![skills](https://img.shields.io/badge/skills-21-8b5cf6)
+![license](https://img.shields.io/badge/license-MIT-2f9e6f)
+![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-d97757)
+![Copilot CLI](https://img.shields.io/badge/Copilot_CLI-plugin-24292e)
+
+</div>
+
+Skills are invoked automatically based on context — working on Compose code activates the `compose` skill, a coroutine bug pulls in `kotlin-coroutines`, and so on. Each `SKILL.md` is plain, self-contained markdown, so the collection also works outside the plugin format.
+
+## Contents
+
+- [Installation](#installation)
+- [Skills](#skills)
+- [Companion tools](#companion-tools)
+- [Related projects](#related-projects)
+- [Attribution](#attribution)
+- [License](#license)
 
 ## Installation
 
 ### Claude Code (plugin)
-
-Install as a plugin to get all skills:
 
 ```
 /plugin marketplace add rcosteira79/android-skills
@@ -16,15 +33,6 @@ Install as a plugin to get all skills:
 ```
 
 Updates are picked up automatically when the plugin version is bumped.
-
-### Claude Code (manual)
-
-Alternatively, copy the skill directories into your Claude Code skills folder:
-
-```bash
-git clone https://github.com/rcosteira79/android-skills.git
-cp -r android-skills/plugins/android-skills/skills/* ~/.claude/skills/
-```
 
 ### Copilot CLI (plugin)
 
@@ -34,165 +42,119 @@ Copilot CLI detects the same plugin format automatically:
 copilot plugin install rcosteira79/android-skills
 ```
 
-### Other agentic editors
+### Manual / other agents
 
-Each skill is self-contained — the `SKILL.md` files are plain markdown, so they can be adapted to other editors that support custom instructions.
-
-### Recommended companion tools
-
-The skills work standalone, but several integrate with external tools for enhanced capabilities. These are independent of the plugin install — use them alongside whichever agent you choose.
-
-#### android-source-explorer MCP
-
-For enhanced source code navigation (local source sync, Tree-sitter parsing, class hierarchy, LSP), install [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp):
+Copy the skill directories into your agent's skills folder:
 
 ```bash
-uv tool install git+https://github.com/mrmike/android-source-explorer-mcp
+git clone https://github.com/rcosteira79/android-skills.git
+cp -r android-skills/plugins/android-skills/skills/* ~/.claude/skills/
 ```
 
-The `android-source-search` and `compose` skills automatically use the MCP tools when available, and fall back to Gitiles/GitHub otherwise.
-
-#### IntelliJ Index MCP
-
-For semantic navigation of your project's code via the IDE's symbol index, install [jetbrains-index-mcp-plugin](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin) in Android Studio or IntelliJ. The agent uses it for type-hierarchy queries — finding implementations, overrides, callers, references through typealiases — with much higher recall than text search alone. Particularly valuable for the `compose`, `android-debugging`, `android-testing`, and `rxjava-migration` skills. Requires the IDE running with the project indexed.
-
-#### Android CLI
-
-Several skills — notably [`compose`](plugins/android-skills/skills/compose/SKILL.md) and [`android-debugging`](plugins/android-skills/skills/android-debugging/SKILL.md) — have CLI-native shortcuts when Google's `android` CLI is installed: documentation search over the Android Knowledge Base (`android docs`), runtime UI layout inspection (`android layout`), device/emulator orchestration, and SDK management. The skills still work without it, but recommend installing it for the best experience.
-
-Follow Google's installation instructions: <https://developer.android.com/tools/agents/android-cli>
+The `SKILL.md` files are plain markdown, so they can be adapted to any editor that supports custom instructions.
 
 ## Skills
 
-Skills are invoked automatically based on context (e.g. working on Compose code activates the `compose` skill).
+### Foundation & architecture
 
-### `android-dev`
-The baseline for Android and KMP work — house defaults (DI, async, JSON, images, networking, module boundaries), routing to the specialised skills, the greenfield MVVM state/effect UI convention, four-bucket UiState modeling, and `Channel(BUFFERED)` over `SharedFlow(replay = 0)` for one-shot effects.
+- **`android-dev`** — the baseline for Android and KMP work: house defaults (DI, async, JSON, images, networking, module boundaries), routing to the specialised skills, the greenfield MVVM state/effect UI convention, four-bucket `UiState` modeling, and `Channel(BUFFERED)` over `SharedFlow(replay = 0)` for one-shot effects.
+- **`modularization`** — visibility discipline for multi-module projects: declare everything at the lowest visibility that still compiles (`private` → `internal` → `public`), keep DI-bound implementation classes `internal` behind `public` interfaces, and treat widening to `public` as a decision that requires a real cross-module consumer.
+- **`android-data-layer`** — data-layer implementation: the layered error-propagation model (repository as the error boundary, sealed `DataError`, `Result` placement with and without a domain layer) and KMP Room setup (`@ConstructedBy`, `BundledSQLiteDriver`, per-target KSP).
 
-> Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
+### UI — Compose & design
 
-### `pdf-annotations`
-Android's platform PDF annotation and page-object editing (API 36.1 on `PdfRenderer.Page`, SDK extension 18 on `PdfRendererPreV.Page` for API 31+) — the runtime version gate, the open→edit→write workflow, and the source-verified contracts: `-1`-returning adds, single-attach annotation instances, id-based update/remove, per-type render flags, write-before-close persistence.
+- **`compose`** — Jetpack Compose expert guidance: state management (`remember`, `derivedStateOf`, hoisting, the unified keying rule, cross-phase back-writing), Modifier chains, lazy lists (`LazyLayoutCacheWindow` prefetch tuning), navigation (Nav 2 + Nav 3 guardrails), animation, side effects (`LifecycleStartEffect`/`LifecycleResumeEffect`), theming, accessibility, performance (Argument Change Reasons, the five compiler stability types, escape-hatch annotations, baseline profiles), focus/key-event navigation (D-pad/TV/ChromeOS, focus restoration, dialog focus traps, predictive-back), and a production-crash playbook with CMP equivalents.
+- **`android-ux`** — Material Design 3 UX principles: foldable postures (tabletop, book mode), M3 contrast levels (`Hct`/`SchemeContent`), motion duration tokens and reduced motion, and an M3 compliance audit scoring screens across 10 categories with grep-based quick checks.
+- **`coil-compose`** — image loading in Compose and CMP with Coil 3: the KMP specifics (`LocalPlatformContext`, `SingletonImageLoader.setSafe`, `coil-compose` vs `coil-compose-core`) and two lazy-list performance guardrails (never `SubcomposeAsyncImage` in lists; `rememberAsyncImagePainter` needs an explicit size).
 
-### `modularization`
-Visibility discipline for multi-module Android/Kotlin projects — declare everything at the lowest visibility that still compiles (`private` → `internal` → `public`), keep DI-bound implementation classes `internal` behind `public` interfaces, and treat widening to `public` as a decision that requires a real cross-module consumer.
+### Async — Kotlin
 
-### `android-testing`
-Test-first discipline for Android/KMP plus the Android test traps — Compose-test dispatching (`StandardTestDispatcher` default, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, and animation/screenshot determinism.
+- **`kotlin-coroutines`** — scope management, structured concurrency, cancellation, and exception handling, centered on scope ownership (prefer `suspend fun`, let the caller own the scope) and exception discipline that doesn't break cancellation.
+- **`kotlin-flows`** — Flow traps and semantic edge cases: `Channel` vs `SharedFlow` one-shot event semantics, callback bridging (`callbackFlow` + `awaitClose`), retry attempt guards, `.catch` scope and the `CancellationException` trap, side effects outside transforms, and explicit backing fields (Kotlin 2.4+).
 
-> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
+### Networking
 
-> Granular tool coverage (Mockito, MockK, `runTest`, Turbine, Robolectric, Espresso, UiAutomator, Gradle Managed Devices, `kotlin.test`) is delegated to the `jvm-tests`, `instrumentation`, and `kotlin` sets of [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills); test-stack bootstrapping to Google's [`testing-setup`](https://github.com/android/skills/tree/main/testing/testing-setup).
+- **`android-retrofit`** — Retrofit setup: `suspend` service functions returning the body directly (`Response<T>` only when you need status/headers/error body), the auth-interceptor throw-vs-proceed decision, loose-JSON `kotlinx.serialization` config, and error mapping at the repository boundary.
+- **`kmp-ktor`** — Ktor client configuration traps for KMP and Android: plugin install order (`HttpRequestRetry` before `HttpTimeout`), `encodeDefaults = true` and the vanishing-constant-field trap, `expectSuccess` consistency, bearer refresh with `markAsRefreshTokenRequest()`, WebSocket/SSE via the serialization converter, `MockEngine` testing, and error mapping at the repository boundary.
 
-### `android-ux`
-Material Design 3 UX principles for Android — foldable postures (tabletop, book mode), M3 contrast levels (`Hct`/`SchemeContent`), M3 motion duration tokens and reduced motion, and an M3 compliance audit that scores screens across 10 categories (color, typography, shape, elevation, components, layout/spacing, navigation, motion, accessibility, theming) with grep-based quick checks.
+### Persistence & lists
 
-> Inspired by [material-3-skill](https://github.com/hamen/material-3-skill)
+- **`datastore`** — Jetpack DataStore for Android and KMP: Preferences vs Typed vs Room selection, the two error traps (`IOException`-specific `.catch`; `CorruptionException` + `ReplaceFileCorruptionHandler` for typed stores), and the KMP factory with per-platform file paths.
+- **`paging`** — Paging 3 for Android and Compose: `PagingSource`, `Pager`/`PagingConfig`, the critical "PagingData must be a separate Flow, never inside UiState" rule, dynamic filters via `flatMapLatest` + `debounce`, `cachedIn` placement, `LazyColumn` integration (`itemKey`/`itemContentType`/load-state handling), `RemoteMediator` for offline-first lists with Room, and unit tests with `TestPager` + `asSnapshot`.
 
-### `android-debugging`
-Debugging Android and KMP issues — Logcat, ADB, ANR traces, R8 stack trace decoding (forward and inverse-mapping), Perfetto trace investigation escalation, memory leaks, Gradle build failures, and Compose recomposition bugs.
+### Dependency injection
 
-> Inverse-mapping (reading obfuscated third-party code via `jadx --deobf`) cross-references the [`android-reverse-engineering`](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) plugin. Deep performance trace investigation cross-references Google's [`perfetto-sql`](https://github.com/android/skills/tree/main/profilers/perfetto-sql) and [`perfetto-trace-analysis`](https://github.com/android/skills/tree/main/profilers/perfetto-trace-analysis) skills.
+- **`koin`** — Koin for Android and KMP: Classic DSL vs KSP annotations, `expect val platformModule: Module` for per-target wiring, `koinViewModel` in Compose, scopes, Nav 3 entry providers via `koinEntryProvider()`, compile-time verification with `verify()`, and a clear Koin-vs-Hilt positioning.
 
-### `android-source-search`
-Fetch and verify Android source code — AOSP platform internals (`@hide` APIs, framework classes, system services via Gitiles) and AndroidX/Jetpack library source and samples (via GitHub). Also useful when public docs are insufficient to complete a task.
+### Multiplatform
 
-> This skill is a zero-setup fallback. For enhanced capabilities (local source sync, sub-10ms Tree-sitter parsing, method-level extraction, class hierarchy, LSP), install [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp) separately — the skill will use it automatically when available.
+- **`kmp-boundaries`** — designing Kotlin Multiplatform boundaries: choosing between `expect`/`actual`, common interfaces with platform bindings, or separate platform screens; capability granularity, the thin-actuals rule, source-set hierarchies (`skikoMain`, `appleMain`), Compose Multiplatform leaf positioning, AGP 9 KMP library plugin constraints, and a dedicated iOS Swift interop reference.
 
-### `kotlin-coroutines`
-Scope management, structured concurrency, cancellation, and exception handling in Android/KMP — centered on scope ownership (prefer `suspend fun`, let the caller own the scope) and exception discipline that doesn't break cancellation.
+### Build & Gradle
 
-> Incorporates material from [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
+- **`android-gradle-logic`** — scalable Gradle build logic: Convention Plugins, composite builds, shared `compileSdk`/`minSdk`/Compose configuration across modules, and clean per-module `build.gradle.kts` files.
+- **`gradle-build-performance`** — Gradle build optimisation: Build Scans, configuration cache, build cache, kapt→KSP migration, parallel execution, lazy task configuration, and a recommended `gradle.properties` baseline.
 
-> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
+### Testing & debugging
 
-### `kotlin-flows`
-Flow traps and semantic edge cases — `Channel` vs `SharedFlow` one-shot event semantics, callback bridging (`callbackFlow` + `awaitClose`), retry attempt guards, `.catch` scope and the `CancellationException` trap, side effects outside transforms, and explicit backing fields (Kotlin 2.4+).
+- **`android-testing`** — test-first discipline plus the Android test traps: Compose-test dispatching (`StandardTestDispatcher` default, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, and animation/screenshot determinism.
+- **`android-debugging`** — debugging Android and KMP issues: Logcat, ADB, ANR traces, R8 stack trace decoding (forward and inverse-mapping), Perfetto trace investigation escalation, memory leaks, Gradle build failures, and Compose recomposition bugs.
 
-> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
+### Platform APIs
 
-### `compose`
-Jetpack Compose expert guidance — state management (`@Composable`, `remember`, `mutableStateOf`, `derivedStateOf`, state hoisting, unified keying rule, cross-phase back-writing), Modifier chains, lazy lists (including `LazyLayoutCacheWindow` prefetch tuning), navigation (Nav 2 + Nav 3 Compose-shape guardrails), animation, side effects (`LifecycleStartEffect`/`LifecycleResumeEffect`), theming, accessibility, performance optimization (Argument Change Reasons, the five compiler stability types including `runtime stable`, subcomposition pitfalls, escape-hatch annotations, baseline profile `Require` vs `UseIfAvailable`), focus/key-event navigation (`FocusRequester`, `focusable`, `focusProperties`, D-pad/TV/ChromeOS, lazy-list focus restoration, dialog focus traps, predictive-back, testing with `performKeyInput` + `assertIsFocused`), and a production-crash playbook with CMP equivalents for `LocalConfiguration` and `rememberSaveable`.
+- **`pdf-annotations`** — editing PDF annotations (highlight, free-text, stamp) and page objects with Android's platform PDF APIs: the API 36.1 / SDK-extension-18 editing surface (`android.graphics.pdf.component`), the version gate between `PdfRenderer.Page` and `PdfRendererPreV.Page`, the open→edit→write workflow, and the id/render-flag/save contracts.
 
-> Forked from [compose-skill](https://github.com/aldefy/compose-skill) — reference docs rebased on live source verification instead of the upstream's bundled AndroidX snapshots.
+### Source access & migration
 
-> Incorporates patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills), [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills), and [compose_skill (hamen)](https://github.com/hamen/compose_skill)
+- **`android-source-search`** — fetch and verify Android source: AOSP platform internals (`@hide` APIs, framework classes, system services via Gitiles) and AndroidX/Jetpack library source and samples (via GitHub). A zero-setup fallback; upgrade with [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp).
+- **`rxjava-migration`** — triggered only when you explicitly ask to migrate: assesses complexity, maps RxJava types and operators to coroutines equivalents, and provides interop patterns for incremental migration.
 
-### `rxjava-migration`
-Triggered only when you explicitly ask to migrate. Assesses complexity, maps RxJava types and operators to coroutines equivalents, and provides interop patterns for incremental migration.
+### Removed
 
-> Incorporates material from [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
+- **`xml-to-compose-migration`** — dropped in favour of Google's actively-maintained [`migrate-xml-views-to-jetpack-compose`](https://github.com/android/skills/tree/main/jetpack-compose/migration).
 
-### `android-retrofit`
-Retrofit setup for Android — `suspend` service functions returning the body directly (`Response<T>` only when you need status/headers/error body), the auth-interceptor throw-vs-proceed decision, loose-JSON `kotlinx.serialization` config, and error mapping at the repository boundary.
+## Companion tools
 
-> Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
+The skills work standalone, but several integrate with external tools for enhanced capabilities. These are independent of the plugin install — use them alongside whichever agent you choose.
 
-### `kmp-ktor`
-Ktor client configuration traps for KMP and Android — plugin install order (`HttpRequestRetry` before `HttpTimeout`), `encodeDefaults = true` and the vanishing-constant-field trap, `expectSuccess` consistency, bearer refresh with `markAsRefreshTokenRequest()`, WebSocket/SSE via the serialization converter, `MockEngine` testing, and error mapping at the repository boundary.
+- **[android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp)** — local source sync, Tree-sitter parsing, class hierarchy, and LSP for Android source navigation. The `android-source-search` and `compose` skills use it automatically when present, and fall back to Gitiles/GitHub otherwise.
 
-> Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill). The plugin install order rule (`ContentNegotiation → Auth → HttpRequestRetry → HttpTimeout → ContentEncoding`), `expectSuccess` guidance, the sealed `ApiResult<T>` + `safeRequest` alternative, and the WebSockets/SSE section absorbed from the upstream.
+  ```bash
+  uv tool install git+https://github.com/mrmike/android-source-explorer-mcp
+  ```
 
-### `kmp-boundaries`
-Designing Kotlin Multiplatform boundaries — choosing between `expect`/`actual`, common interfaces with platform bindings, or separate platform screens. Covers capability granularity (split by capability, not one `Platform` object), the thin-actuals rule, source-set hierarchies (`skikoMain`, `appleMain`), Compose Multiplatform leaf positioning, AGP 9 KMP library plugin constraints, and a dedicated iOS Swift interop reference (Kotlin↔Swift naming, type bridging, SKIE, sealed-class exhaustiveness, `UIHostingController` embedding).
+- **[jetbrains-index-mcp-plugin](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin)** — semantic navigation via the IDE's symbol index (implementations, overrides, callers, references through typealiases) with much higher recall than text search. Particularly valuable for `compose`, `android-debugging`, `android-testing`, and `rxjava-migration`. Requires Android Studio / IntelliJ running with the project indexed.
 
-> Inspired by [chrisbanes/skills](https://github.com/chrisbanes/skills)
+- **Google's `android` CLI** — CLI-native shortcuts for `compose` and `android-debugging`: Android Knowledge Base search (`android docs`), runtime UI layout inspection (`android layout`), device/emulator orchestration, and SDK management. Skills work without it, but it's recommended for the best experience. [Install instructions](https://developer.android.com/tools/agents/android-cli).
 
-> The iOS Swift interop reference (Kotlin → Swift naming, type bridging, SKIE async/AsyncSequence, exhaustive sealed-class switches with `onEnum(of:)`, `ComposeUIViewController` / `UIKitViewController` with `UIHostingController` for embedding SwiftUI in Compose, and iOS API design rules like `@HiddenFromObjC` and `isStatic`) adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
+## Related projects
 
-### `android-data-layer`
-Data layer implementation — the layered error-propagation model (repository as the error boundary, sealed `DataError`, `Result` placement with and without a domain layer) and KMP Room setup (`@ConstructedBy`, `BundledSQLiteDriver`, per-target KSP).
+- [android/skills](https://github.com/android/skills) — Google's official Android agent skills: AGP 9 migration (pure-Android), XML-to-Compose migration, Navigation 3, R8 analysis, Play Billing upgrades, and edge-to-edge support.
+- [Kotlin/kotlin-agent-skills](https://github.com/Kotlin/kotlin-agent-skills) — JetBrains' official Kotlin skills: AGP 9 migration for KMP, CocoaPods → SwiftPM migration, framework-aware Java-to-Kotlin conversion, and Kotlin backend/JPA entity mapping.
+- [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) — curated list of Android agent skills.
+- [chrisbanes/skills](https://github.com/chrisbanes/skills) — narrow, opinionated Compose and Kotlin skills covering state authoring, side effects, recomposition performance, stability diagnostics, focus navigation, UI testing, structured concurrency, and KMP `expect`/`actual` boundaries.
+- [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) — broad Compose + KMP skill covering MVI/MVVM, Navigation 2 & 3, Ktor, Koin/Hilt, Room, DataStore, Paging, and iOS interop.
+- [compose-skill (aldefy)](https://github.com/aldefy/compose-skill) — alternative Compose skill that bundles a static AndroidX snapshot.
+- [compose_skill (hamen)](https://github.com/hamen/compose_skill) — ships `jetpack-compose-audit` (evidence-based repo scoring via Compose Compiler reports) and `compose-agent` (a teaching/authoring skill with 13 reference files). Install directly for the full audit+score workflow.
+- [material-3-skill](https://github.com/hamen/material-3-skill) — comprehensive Material Design 3 reference: 30+ components, design tokens, theming, responsive layout, and dynamic color.
+- [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills) — 54 source-grounded testing skills as a 7-set catalog to cherry-pick from. The `jvm-tests`, `instrumentation`, and `kotlin` sets fit cleanly alongside `android-testing` without overlap. Apache-2.0.
+- [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills) — the performance side of Compose (stability, recomposition, lazy layouts, baseline profiles, R8, hot reload).
+- [android-reverse-engineering-skill](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) — decompiling APKs, extracting API endpoints, and tracing call flows.
 
-> Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills). Room KMP setup section (`@ConstructedBy` + `expect object`, `BundledSQLiteDriver`, `setQueryCoroutineContext`, per-target KSP wiring) adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill).
+## Attribution
 
-### `coil-compose`
-Image loading in Compose and CMP with Coil 3 — the KMP specifics (`LocalPlatformContext`, `SingletonImageLoader.setSafe`, `coil-compose` vs `coil-compose-core`) and two lazy-list performance guardrails (never `SubcomposeAsyncImage` in lists; `rememberAsyncImagePainter` needs an explicit size).
+Several skills were inspired by or built on community work. Skills not listed below are original work.
 
-> Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
-
-### `android-gradle-logic`
-Scalable Gradle build logic — Convention Plugins, composite builds, shared `compileSdk`/`minSdk`/Compose configuration across modules, and clean per-module `build.gradle.kts` files.
-
-> Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
-
-### `gradle-build-performance`
-Gradle build optimisation — Build Scans, configuration cache, build cache, kapt→KSP migration, parallel execution, lazy task configuration, and a recommended `gradle.properties` baseline.
-
-> Inspired by [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills)
-
-### `datastore`
-Jetpack DataStore for Android and KMP — Preferences vs Typed vs Room selection, the two error traps (`IOException`-specific `.catch`; `CorruptionException` + `ReplaceFileCorruptionHandler` for typed stores), and the KMP factory with per-platform file paths (Android `filesDir`, iOS `NSFileManager`, JVM `~/.appname/`).
-
-> Adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)'s DataStore reference
-
-### `paging`
-Paging 3 for Android and Compose — `PagingSource`, `Pager` / `PagingConfig`, the critical "PagingData must be a separate Flow, never inside UiState" rule, dynamic filters via `flatMapLatest` + `debounce`, `cachedIn` placement, `LazyColumn` integration with `itemKey` / `itemContentType` / load-state handling, `RemoteMediator` for offline-first lists with Room, and unit tests with `TestPager` + `asSnapshot`.
-
-> Adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)'s Paging 3 references
-
-### `koin`
-Koin dependency injection for Android and KMP — Classic DSL vs KSP annotations decision, `expect val platformModule: Module` for per-target engine wiring, `koinViewModel` in Compose, scopes (`scope<T>`, `activityRetainedScope`), Nav 3 entry providers via `koinEntryProvider()`, compile-time module verification with `verify()`, and a clear Koin-vs-Hilt positioning (Koin for KMP and `verify()`, Hilt for Android-only and codegen-enforced graph validation).
-
-> Adapted from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)'s Koin reference
-
-## Removed skills
-
-- **`xml-to-compose-migration`** — dropped in favour of Google's actively-maintained [`migrate-xml-views-to-jetpack-compose`](https://github.com/android/skills/tree/main/jetpack-compose/migration), available via the [`android/skills`](https://github.com/android/skills) repo.
-
-## Related Projects
-
-- [android/skills](https://github.com/android/skills) — Google's official Android agent skills covering AGP 9 migration (pure-Android; KMP is out of scope), XML-to-Compose migration, Navigation 3, R8 analysis, Play Billing upgrades, and edge-to-edge support
-- [Kotlin/kotlin-agent-skills](https://github.com/Kotlin/kotlin-agent-skills) — JetBrains' official agent skills for Kotlin, covering AGP 9 migration for KMP (the complement to Google's pure-Android `agp-9-upgrade`), CocoaPods → SwiftPM migration, framework-aware Java-to-Kotlin conversion, and Kotlin backend/JPA entity mapping
-- [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) — curated list of Android agent skills that inspired many of the skills in this repo
-- [compose-skill](https://github.com/aldefy/compose-skill) — alternative Compose skill that bundles a static AndroidX snapshot
-- [android-source-explorer-mcp](https://github.com/mrmike/android-source-explorer-mcp) — MCP server for navigating Android source code (optional, used by `android-source-search` skill)
-- [material-3-skill](https://github.com/hamen/material-3-skill) — comprehensive Material Design 3 reference covering 30+ components, design tokens, theming, responsive layout, and dynamic color across platforms
-- [compose_skill](https://github.com/hamen/compose_skill) — ships two complementary skills: `jetpack-compose-audit` (a strict, evidence-based audit skill that scores repos 0–100 on performance, state, side effects, and API quality using automated Compose Compiler reports + an `--init-script` for project-edit-free auditing) and `compose-agent` (a teaching/authoring skill with 13 reference files covering state, effects, performance, modifiers, navigation, concurrency, flows, component API, testing, focus, KMP, kotlin style, and API migrations). We've absorbed targeted rules from both into our `compose` skill; install hamen's directly for the full audit+score workflow.
-- [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) — broad Compose + KMP skill covering MVI/MVVM, Navigation 2 & 3, Ktor, Koin/Hilt, Room, DataStore, Paging, and iOS interop; inspired the `kmp-ktor` skill in this repo
-- [chrisbanes/skills](https://github.com/chrisbanes/skills) — Chris Banes' narrow, opinionated Compose and Kotlin skills covering state authoring, side effects, recomposition performance, stability diagnostics, focus navigation, UI testing patterns, structured concurrency, flow primitive selection, and KMP expect/actual boundaries; informed the `kmp-boundaries` and `focus-navigation` references and authoring rules across several existing skills
-- [android-reverse-engineering-skill](https://github.com/SimoneAvogadro/android-reverse-engineering-skill) — Claude Code plugin for decompiling APKs, extracting API endpoints, and tracing call flows
-- [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills) — 54 source-grounded testing skills organized as a 7-set catalog the author says to cherry-pick from: `compose` (25), `fundamentals` (5), `kotlin` (1), `jvm-tests` (6), `instrumentation` (6), `platform` (1), `adb` (10). Complements our `android-testing`: the `jvm-tests`, `instrumentation`, and `kotlin` sets fit cleanly alongside it without overlap; the `compose` and `fundamentals` sets overlap our `compose` and `android-testing` coverage. Apache-2.0.
-- [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills) — sister repo covering the *performance* side of Compose (stability, recomposition, lazy layouts, baseline profiles, R8, hot reload). Same authoring spec; install both for full testing + performance coverage.
+| Skill(s) | Source |
+|---|---|
+| `android-dev`, `kmp-ktor`, `datastore`, `paging`, `koin` | [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) |
+| `android-retrofit`, `coil-compose`, `rxjava-migration`, `android-gradle-logic`, `gradle-build-performance` | [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) |
+| `android-data-layer` | [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills); Room KMP section from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) |
+| `kotlin-coroutines` | [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) + [chrisbanes/skills](https://github.com/chrisbanes/skills) |
+| `android-testing`, `kotlin-flows` | [chrisbanes/skills](https://github.com/chrisbanes/skills) |
+| `kmp-boundaries` | [chrisbanes/skills](https://github.com/chrisbanes/skills); iOS Swift interop from [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill) |
+| `android-ux` | [material-3-skill](https://github.com/hamen/material-3-skill) |
+| `compose` | [aldefy/compose-skill](https://github.com/aldefy/compose-skill) (rebased on live source verification), with patterns from [chrisbanes/skills](https://github.com/chrisbanes/skills), [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills), and [compose_skill (hamen)](https://github.com/hamen/compose_skill) |
 
 ## License
 

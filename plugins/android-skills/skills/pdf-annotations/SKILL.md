@@ -33,18 +33,14 @@ Two parallel renderers expose the same editing surface
 | `PdfRendererPreV.Page` | SDK extension 18 | API 31+ with the PDF module updated (PreV itself needs extension 13) |
 
 Gate at runtime with `SdkExtensions.getExtensionVersion(Build.VERSION_CODES.S)`
-— the same pattern the viewer guide uses for its extension-13 floor
-[kb://android/develop/ui/views/layout/pdf/implement-pdf-viewer,
-kb://android/guide/sdk-extensions/index]. api-versions.xml records the
-`PdfRendererPreV.Page` editing methods as `sdks="31:18,…"` — extension 18
-reaches back to API 31 via mainline updates, so PreV is the branch that covers
-most devices.
+[kb://android/guide/sdk-extensions/index]. Extension 18 reaches back to API 31
+via mainline updates, so `PdfRendererPreV` is the branch that covers most
+devices.
 
 ## The workflow: open → edit → write
 
 ```kotlin
-// The fd must be seekable — pipes/sockets are rejected at construction
-// (AOSP: MediaProvider/pdf … PdfProcessor.java, "File descriptor not seekable").
+// The fd must be seekable — pipes/sockets are rejected at construction.
 ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
     PdfRenderer(fd).use { renderer ->                    // or PdfRendererPreV on the ext-18 branch
         renderer.openPage(0).use { page ->
@@ -74,10 +70,7 @@ ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
 }
 ```
 
-Contracts, source-verified in the PDF module (AOSP
-`packages/providers/MediaProvider/pdf/framework/java/android/graphics/pdf/`,
-mirrored by the `PdfRendererPreV` javadoc — the classic renderer invariants
-still hold while editing):
+Contracts:
 
 - **`addPageAnnotation` returns the annotation id, or `-1` when the annotation
   cannot be added — check the return; only null/`UNKNOWN`-type/already-attached
@@ -89,14 +82,13 @@ still hold while editing):
   returns only annotation types the API models, so a page with unsupported
   annotations has gaps — the `Pair.first` id is the stable handle.
 - **One page open at a time** — the pre-existing `PdfRenderer` invariant
-  ("you can have only a single page opened at any given time",
-  `PdfRendererPreV.java`) still applies; close the page before opening the next.
+  ("you can have only a single page opened at any given time") still applies;
+  close the page before opening the next.
 - **`write()` before `close()`**, destination must be a distinct writable
   seekable fd; `IllegalStateException` after close.
 - **The pairs are `android.util.Pair`, not `kotlin.Pair`** — Kotlin
   destructuring (`for ((id, a) in …)`) does not compile against them; use
-  `.first`/`.second`. (Caught empirically: the first live eval's skill arm
-  wrote the destructuring form and failed to compile.)
+  `.first`/`.second`.
 
 ## Rendering what you edited
 
@@ -111,7 +103,7 @@ transform, params)` overload. The render-mode constants live on
 **`RenderParams`** (and legacy `PdfRenderer.Page`) — `PdfRendererPreV.Page`
 has none, so on the PreV branch write
 `RenderParams.Builder(RenderParams.RENDER_MODE_FOR_DISPLAY)`; qualifying it
-via `PdfRendererPreV.Page` does not compile (also caught empirically).
+via `PdfRendererPreV.Page` does not compile.
 
 ## Component vocabulary (android.graphics.pdf.component)
 
