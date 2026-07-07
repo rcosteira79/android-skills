@@ -71,6 +71,9 @@ The baseline for Android and KMP work — house defaults (DI, async, JSON, image
 
 > Inspired by [compose-skill (Meet-Miyani)](https://github.com/Meet-Miyani/compose-skill)
 
+### `pdf-annotations`
+Android's platform PDF annotation and page-object editing (API 36.1 on `PdfRenderer.Page`, SDK extension 18 on `PdfRendererPreV.Page` for API 31+) — the runtime version gate, the open→edit→write workflow, and the source-verified contracts: `-1`-returning adds, single-attach annotation instances, id-based update/remove, per-type render flags, write-before-close persistence.
+
 ### `modularization`
 Visibility discipline for multi-module Android/Kotlin projects — declare everything at the lowest visibility that still compiles (`private` → `internal` → `public`), keep DI-bound implementation classes `internal` behind `public` interfaces, and treat widening to `public` as a decision that requires a real cross-module consumer.
 
