@@ -35,6 +35,7 @@ Load the specific skill for the task, always with the **fully-qualified `android
 | Debugging — Logcat, crashes, ANRs, profiling | `android-skills:android-debugging` |
 | AOSP / AndroidX source lookup | `android-skills:android-source-search` |
 | Multi-module visibility & module boundaries | `android-skills:modularization` |
+| Platform PDF annotation / page-object editing (API 36.1 / SDK ext 18) | `android-skills:pdf-annotations` |
 
 ## New-project UI convention (greenfield)
 
