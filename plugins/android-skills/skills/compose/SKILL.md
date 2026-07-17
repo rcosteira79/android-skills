@@ -33,6 +33,7 @@ When helping with Compose code, follow this checklist:
 ### 2. Analyze the design (if visual reference provided)
 - If the user shares a Figma frame, screenshot, or design spec, consult `references/design-to-compose.md`
 - Decompose the design into a composable tree
+- Transcribe, don't adapt — copy, casing, punctuation and number format come across exactly; resolve each value to the token that matches it exactly, and add a token the theme lacks rather than substituting the nearest (`references/design-to-compose.md`)
 - Map design tokens to MaterialTheme, spacing to CompositionLocals
 - Identify animation needs — `references/animation.md` (contentKey, phase rule, M3 motion tokens), `references/animation-recipes.md` (shimmer/loading-crossfade + choreography), or `references/animation-advanced.md` (shared-element, predictive back, `drawBehind`-for-color)
 
@@ -59,7 +60,7 @@ Read the relevant reference file(s) from `references/` before answering:
 | `FocusRequester`, `focusable()`, `focusProperties`, key events, D-pad, TV, keyboard, focus restoration | `references/focus-navigation.md` |
 | Removed/replaced APIs, migration paths from older Compose versions | `references/deprecated-patterns.md` |
 | **Styles API** (experimental): `Style {}`, `MutableStyleState`, `Modifier.styleable()` | `references/styles-experimental.md` |
-| Figma `dropShadow`/`innerShadow` (1.9+, chain placement), spacing/elevation design-token CompositionLocal | `references/design-to-compose.md` |
+| Transcribing a design — exact copy/casing/number format, exact-token-vs-near-neighbour, missing-token-added-not-substituted, export-over-render as source of truth; Figma `dropShadow`/`innerShadow` (1.9+, chain placement), spacing/elevation design-token CompositionLocal | `references/design-to-compose.md` |
 | Production crash patterns, defensive coding, state/performance rules | `references/production-crash-playbook.md` |
 | CMP gotchas (`collectAsState`-in-commonMain, commonMain `@Preview` package, Lottie→Kottie, compiler-stability-non-JVM) + Android-only→CMP migration | `references/multiplatform.md` |
 | Desktop (Window, Tray, MenuBar), iOS (UIKitView), Web (ComposeViewport) | `references/platform-specifics.md` |
