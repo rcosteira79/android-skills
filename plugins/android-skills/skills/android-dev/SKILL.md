@@ -127,6 +127,18 @@ data class CheckoutUiState(
 
 The bucket dictates lifecycle and persistence, not the field. Persisting `isSubmitting` keeps the spinner forever after process death; computing `canSubmit` outside the class lets it drift from the inputs; persisting `cardNumber` cross-screen leaks PII. Mixing the buckets produces bugs that look architectural.
 
+## UI state and UI models live in different files
+
+`UiState` is the screen's contract with its ViewModel, not a UI model — it gets its own file (or the ViewModel's, if that's the project's layout). Never sweep UI models into it. "Each type has a single owner / it's one unit of change / the real seam is role-per-file" argues for exactly this mistake: the state and the models it holds *are* different roles.
+
+Group the models by **composition**, never by screen:
+
+- Models composing one bigger model share that model's file, **named after the bigger model** — `ChallengeDetailUi.kt` holds `ChallengeDetailUi` plus the `ChallengeTaskUi` / `SponsorshipUi` it is built from.
+- Independent models each get their own file.
+- `FooModels.kt` / `FooUiModels.kt` is never the answer — reaching for a grab-bag name proves no aggregate root was found, which means the types are independent and belong in their own files.
+
+Kotlin's "related declarations may share a file named after the primary declaration" is the mechanism, not a licence to nominate the *state* as that primary declaration and sweep the models in behind it.
+
 ## Reuse the project's existing mechanism
 
 Before adding any new mechanism — an event dispatcher, an effects `Channel`/`SharedFlow`, a use-case layer, or a parallel state field — open a sibling ViewModel in the same feature and reuse what's already there. The easy miss here is **duplicating** an existing mechanism instead of widening it — adding a second `shouldDisplayUndoX` flag beside the existing one rather than generalizing the one that's there. If existing code contradicts a "best practice," follow the code and flag the inconsistency; never silently override the project's architecture.
