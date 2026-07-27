@@ -7,11 +7,11 @@ description: Use when setting up or refactoring Android Gradle build logic — c
 
 Centralise build configuration in reusable **Convention Plugins** inside a `build-logic/` composite build, so each module's `build.gradle.kts` collapses to `plugins { alias(libs.plugins.myapp.android.library) }` plus a `namespace`.
 
-The canonical worked example is **[nowinandroid's `build-logic/`](https://github.com/android/nowinandroid/tree/main/build-logic)** — start from it rather than hand-rolling. This skill covers the three wiring details that are easy to get wrong, plus the AGP 9 deltas.
+The canonical worked example is **[nowinandroid's `build-logic/`](https://github.com/android/nowinandroid/tree/main/build-logic)** — start from it rather than hand-rolling. This skill covers the wiring detail that is easy to get wrong, plus the AGP 9 deltas.
 
-## The wiring gotchas
+## The wiring gotcha
 
-**1. `build-logic` does NOT inherit the root version catalog — recreate it.** A composite build has its own `settings.gradle.kts`; the root `libs` catalog is invisible inside `build-logic` until you declare it. Without this the convention plugins can't reference `libs.*` and won't compile:
+**`build-logic` does NOT inherit the root version catalog — recreate it.** A composite build has its own `settings.gradle.kts`; the root `libs` catalog is invisible inside `build-logic` until you declare it. Without this the convention plugins can't reference `libs.*` and fail to compile with `Unresolved reference: libs`:
 
 ```kotlin
 // build-logic/settings.gradle.kts
@@ -22,23 +22,24 @@ dependencyResolutionManagement {
 }
 ```
 
-**2. Declare the convention-plugin ids in `[plugins]` with `version = "unspecified"`** — otherwise `alias(libs.plugins.myapp.android.library)` in a module file doesn't resolve (Gradle treats it as a versioned external plugin and fails to find it). The `id` here must match the one you `register(...)`:
+## Applying the plugins from the catalog
+
+Declare the convention-plugin ids in `[plugins]` so modules can apply them by alias. The `id` **must match the one you `register(...)`** in `build-logic` — a mismatch is the usual cause of an alias that won't resolve:
 
 ```toml
 # gradle/libs.versions.toml
 [plugins]
-myapp-android-application = { id = "myapp.android.application", version = "unspecified" }
-myapp-android-library     = { id = "myapp.android.library", version = "unspecified" }
-myapp-android-compose     = { id = "myapp.android.compose", version = "unspecified" }
+myapp-android-application = { id = "myapp.android.application" }
+myapp-android-library     = { id = "myapp.android.library" }
+myapp-android-compose     = { id = "myapp.android.compose" }
 ```
 
-**3. Set the JVM toolchain via Kotlin's extension, not `JavaPluginExtension`.** AGP's `com.android.application` / `com.android.library` plugins do **not** apply Gradle's `java` plugin, so `configure<JavaPluginExtension> { ... }` throws *"Extension of type JavaPluginExtension does not exist"* and fails configuration in every module. Use the Kotlin extension inside the convention plugin:
+A version is not required for a locally-registered plugin — the included build supplies it, so the alias resolves whatever the catalog does or doesn't declare. nowinandroid writes `version = "unspecified"` explicitly, which is fine and self-documenting, just not load-bearing.
+
+Set shared configuration — `compileSdk` / `minSdk` / Compose / the JVM toolchain — once inside the convention plugins rather than per module. For a Kotlin Android module `kotlin { jvmToolchain(21) }` is the idiomatic one-liner, and it sets the toolchain for both Kotlin and Java compilation:
 
 ```kotlin
-extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
-    jvmToolchain(21)
-}
-// equivalently: kotlin { jvmToolchain(21) }
+kotlin { jvmToolchain(21) }
 ```
 
 ## AGP 9 Implications
@@ -51,6 +52,5 @@ Defer to the dedicated migration skills for the mechanics rather than duplicatin
 
 - [ ] `build-logic` included as a composite build (`includeBuild("build-logic")`) in the root `settings.gradle.kts`
 - [ ] `build-logic/settings.gradle.kts` recreates the `libs` catalog via `from(files("../gradle/libs.versions.toml"))`
-- [ ] Convention plugins `register`-ed with stable ids **and** declared in `[plugins]` with `version = "unspecified"`
-- [ ] JVM toolchain set via `KotlinAndroidProjectExtension` / `kotlin { jvmToolchain() }`, never `JavaPluginExtension`
-- [ ] `compileSdk` / `minSdk` / Compose set once in the plugins, not per module
+- [ ] Convention plugins `register`-ed with stable ids, and the `[plugins]` alias ids match them exactly
+- [ ] `compileSdk` / `minSdk` / Compose / JVM toolchain set once in the plugins, not per module
