@@ -25,7 +25,7 @@ A canonical list of old → current Compose APIs, for catching retired Accompani
   fun Modifier.myModifier(value: Int) = this then MyElement(value)
   ```
 
-- **`@ExperimentalMaterial3Api` graduated** (Material3 1.3): `DatePicker`, `TimePicker`, `ExposedDropdownMenuBox`, and `SearchBar` are stable — drop the `@OptIn`.
+- **`@ExperimentalMaterial3Api`: only `DatePicker` has graduated.** Drop the `@OptIn` for `DatePicker` on AndroidX. `TimePicker`, `ExposedDropdownMenuBox` and `SearchBar` still carry `@ExperimentalMaterial3Api`, so they still need it — read the declaration before removing an `@OptIn`. Compose Multiplatform 1.8.2 lags AndroidX here and still wants the opt-in for `DatePicker` too.
 
 - **`LinearProgressIndicator(progress = 0.5f)` → `progress = { 0.5f }`** — the raw-`Float` M3 overload is deprecated; the lambda defers the read so an `Animatable` / `State<Float>` can drive it without recomposing the parent every frame. Same for `CircularProgressIndicator`.
 
@@ -41,5 +41,5 @@ A canonical list of old → current Compose APIs, for catching retired Accompani
 - **String routes → type-safe `@Serializable` routes** (`composable<Route> { it.toRoute<Route>() }`, navigation-compose 2.8+) — see `compose/references/navigation.md`.
 - **`collectAsState()` → `collectAsStateWithLifecycle()`** *on Android* (lifecycle-aware; stops collecting in the background). Android-only — `collectAsState()` remains correct in CMP `commonMain` (see `multiplatform.md`).
 - **`mutableStateOf(0)` → `mutableIntStateOf(0)`** (and `mutableFloatStateOf` / `mutableLongStateOf`) — avoids boxing; see `state-management.md`.
-- **`Scaffold { }` → `Scaffold { innerPadding -> … }`** — applying `innerPadding` has been compiler-enforced since 1.6 (the old form won't compile).
+- **`Scaffold { }` → `Scaffold { innerPadding -> … }`** — ignoring the `PaddingValues` is an Android **Lint** error (`UnusedMaterial3ScaffoldPaddingParameter`), not a compile error: a Kotlin lambda may always ignore the parameter it is handed. The lint task catches it on Android; on a Compose Multiplatform target nothing catches it, so apply the padding yourself there.
 - **Material 2 → Material 3** — mostly API-compatible; `MaterialTheme.colors` → `.colorScheme`, the new shape system, updated ripple defaults. Align versions via the Compose BOM.
