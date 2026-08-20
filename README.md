@@ -5,7 +5,7 @@
 **Android & KMP development skills for Claude Code and Copilot CLI** — architecture, Compose, coroutines, flows, networking, persistence, dependency injection, testing, debugging, and Gradle.
 
 ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Frcosteira79%2Fandroid-skills%2Fmain%2F.claude-plugin%2Fmarketplace.json&query=%24.metadata.version&label=version&color=3b82f6&prefix=v)
-![skills](https://img.shields.io/badge/skills-21-8b5cf6)
+![skills](https://img.shields.io/badge/skills-22-8b5cf6)
 ![license](https://img.shields.io/badge/license-MIT-2f9e6f)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-d97757)
 ![Copilot CLI](https://img.shields.io/badge/Copilot_CLI-plugin-24292e)
@@ -60,6 +60,7 @@ The `SKILL.md` files are plain markdown, so they can be adapted to any editor th
 - **`android-dev`** — the baseline for Android and KMP work: house defaults (DI, async, JSON, images, networking, module boundaries), routing to the specialised skills, the greenfield MVVM state/effect UI convention, four-bucket `UiState` modeling, and `Channel(BUFFERED)` over `SharedFlow(replay = 0)` for one-shot effects.
 - **`modularization`** — visibility discipline for multi-module projects: declare everything at the lowest visibility that still compiles (`private` → `internal` → `public`), keep DI-bound implementation classes `internal` behind `public` interfaces, and treat widening to `public` as a decision that requires a real cross-module consumer.
 - **`android-data-layer`** — data-layer implementation: the layered error-propagation model (repository as the error boundary, sealed `DataError`, `Result` placement with and without a domain layer) and KMP Room setup (`@ConstructedBy`, `BundledSQLiteDriver`, per-target KSP).
+- **`android-domain-layer`** — where behaviour goes in the domain layer: business *rules* on the model (invariants at construction, derived values as properties, value objects, `require` vs `Result`) and business *logic* in use cases (orchestration, the `Result` boundary, when a use case is pure overhead), plus the placement test, what never enters the domain module, and the review smells that mean a rule escaped its model.
 
 ### UI — Compose & design
 

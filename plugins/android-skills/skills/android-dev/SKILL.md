@@ -21,6 +21,7 @@ House defaults — apply them without reminders or re-derivation; where the proj
 - **Network/local:** Android uses Retrofit/OkHttp + Room; KMP shared uses Ktor + Room or SQLDelight. Retrofit is Android-only — never in a shared module.
 - **Modules:** feature-vertical packages and modules; `:core:model` has zero Android deps; `:feature:*` modules never depend on each other.
 - **Errors:** mapped to a domain type at the repository boundary — platform exceptions never leak past it; UI state explicitly models loading / success / error (see `android-skills:android-data-layer`).
+- **Domain:** business *rules* live on the domain model (invariants at construction, derived values as properties); use cases only *orchestrate* across collaborators. A validation or calculation written inside a use case is a rule in the wrong place (see `android-skills:android-domain-layer`).
 
 ## Skill routing
 
@@ -32,6 +33,7 @@ Load the specific skill for the task, always with the **fully-qualified `android
 | M3 UX — touch targets, adaptive/foldable layouts, accessibility & M3-compliance audit | `android-skills:android-ux` |
 | Coroutines & Flow — operators, `Channel` vs `SharedFlow`, structured concurrency | `android-skills:kotlin-coroutines`, `android-skills:kotlin-flows` |
 | Repository / data layer + error model | `android-skills:android-data-layer` |
+| Domain layer — rule-vs-orchestration placement, use case design, value objects | `android-skills:android-domain-layer` |
 | Networking | `android-skills:android-retrofit` (Android) · `android-skills:kmp-ktor` (KMP) |
 | Paging | `android-skills:paging` |
 | Image loading | `android-skills:coil-compose` |

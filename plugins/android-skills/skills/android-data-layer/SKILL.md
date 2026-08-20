@@ -5,7 +5,7 @@ description: Use when implementing the data layer in Android or KMP — the Repo
 
 # Android Data Layer
 
-The data layer coordinates data from multiple sources; its public API is repository interfaces, and its internals (DAOs, API services, DTOs) never leak upward. This skill is the canonical home for the **error-propagation model**, plus the KMP-Room setup. **Related:** `android-skills:android-retrofit` (Retrofit service/OkHttp/Hilt wiring), `android-skills:android-dev` (overall app architecture).
+The data layer coordinates data from multiple sources; its public API is repository interfaces, and its internals (DAOs, API services, DTOs) never leak upward. This skill is the canonical home for the **error-propagation model**, plus the KMP-Room setup. **Related:** `android-skills:android-retrofit` (Retrofit service/OkHttp/Hilt wiring), `android-skills:android-domain-layer` (what belongs in a use case vs a domain model), `android-skills:android-dev` (overall app architecture).
 
 ## Error propagation — the layered model
 
@@ -30,7 +30,7 @@ The boundary moves outward by one layer when a domain layer exists:
 
 1. **Data sources** throw platform/library exceptions (`IOException`, `HttpException`, `SQLiteException`).
 2. **Repository** is the error boundary — catch those and remap to `DataError`; never let raw platform types leak. *Without a domain layer (simple MVVM):* the repository returns `Result<T>` directly and the ViewModel handles it without knowing about platform exceptions.
-3. **Use cases** (when present) are the `Result` boundary — the repository instead *throws* `DataError`, and the use case catches it and returns `Result<T>` with a domain-specific error model. Use cases never catch platform exception types.
+3. **Use cases** (when present) are the `Result` boundary — the repository instead *throws* `DataError`, and the use case catches it and returns `Result<T>` with a domain-specific error model. Use cases never catch platform exception types — and they orchestrate only; the rules themselves live on the domain model (`android-skills:android-domain-layer`).
 4. **ViewModels** handle `Result<T>` and map it to UI state (explicit loading / success / error).
 
 (Default to the `Entity` suffix — `ArticleEntity` — for Room types; match an existing convention such as a `Cached` prefix if the project already uses one.)
