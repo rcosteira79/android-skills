@@ -6,7 +6,9 @@ description: >
   `:domain` / `:core:model` module. Symptoms — a validation `if` or a total/eligibility/expiry
   calculation inside a use case; a domain `data class` with fields and no behaviour; two use
   cases computing the same thing slightly differently; `require` vs `Result` placement; a use
-  case that only forwards to one repository call; "where does this rule belong?".
+  case that only forwards to one repository call; a derived property invented for a screen whose
+  ticket states no rule; a calculation moved onto a model while a copy stays behind; "where does
+  this rule belong?".
 ---
 
 # Android Domain Layer
@@ -25,6 +27,14 @@ Two corollaries worth stating, because both get violated in the same review:
 
 - A rule that can only be tested through a mocked repository is in the wrong place. Rules are pure functions of the model — testable with no mocks, no `runTest`, no dispatcher.
 - A use case that computes something a second use case also needs has stolen a rule from the model. Move it, don't copy it.
+
+## First: is there a rule here at all?
+
+The placement test answers *where* a rule goes. It does not conjure one, and applying it to a ticket that states no rule is its own failure mode.
+
+A list screen, a settings toggle, a detail view that renders what the repository returned — these have no business rule, so the model stays a plain `data class` and you add nothing to it. **A derived property you had to go looking for is a requirement you invented**: `val canBecomeDefault get() = !isDefault` sitting beside the `isDefault` the model already exposes, a value class wrapped around a field nothing validates, a policy type for a screen that only lists rows.
+
+The same restraint applies to gaps in the spec. *"The deposit is 30% for standard bookings"* says nothing about non-standard ones — return zero and raise the question; do not fill the silence with *"then the full total is due"*. An invented rule is worse than a misplaced one: a misplaced rule is at least a requirement someone asked for.
 
 ## Anemic model, fat use case — the shape to stop writing
 
@@ -89,6 +99,16 @@ The derived values are **properties, not constructor parameters** — the same r
 
 Mapping the failure to a message is UI work — the model names the violation, it does not phrase it.
 
+## Moving a rule is a refactor, not a rewrite
+
+Relocating a rule — out of a use case, out of a ViewModel, onto the model — has three obligations. Each is a real defect when it is skipped, and each is easy to miss because the diff reads as tidying.
+
+- **The behaviour must be identical.** `subtotalCents * percent / 100` on `Long` truncates. Re-expressing it with `Double`, `BigDecimal`, or a rounding helper changes what real customers are charged, and nothing in the diff announces it. If you think the existing arithmetic is wrong, say so separately — never correct it silently inside a move.
+- **The old call site moves with it.** Adding the rule to the model while the original expression stays where it was produces exactly the drift the move was meant to prevent. The old site must now *call* the rule.
+- **The helpers travel too.** A relocated rule usually leans on constants, formatters, or small extensions that were `private` or `internal` to the file it left. Hoist them somewhere both callers reach. Copy-pasting an `internal fun money()` into the second feature is duplication whether or not you classify formatting as presentation — *"it isn't a business rule"* is a reason to keep it out of `:core:model`, never a reason to have two of it.
+
+**And a dependency isn't placed until it's wired.** Passing `now` in means something must supply it: a `Clock` constructor parameter needs its DI binding in the same change, or the code doesn't compile. Correct placement that leaves the app unbuildable is not a win — this never comes at the cost of working code.
+
 ## Use case responsibilities — and when not to write one
 
 A use case orchestrates and nothing else: sequence repository calls, combine sources, apply cross-aggregate rules, and act as the `Result` boundary (it catches `DataError` thrown by the repository and returns a domain error — see step 3 of the layered model in `android-skills:android-data-layer`). Conventions: one public `operator fun invoke`, `suspend` or returning `Flow`, named for the action (`SubmitOrder`, not `OrderManager`).
@@ -108,4 +128,6 @@ Threading is not a use-case concern: don't wrap the body in `withContext` — th
 
 ## Reviewing for this
 
-Grep-able smells, each meaning "a rule escaped its model": an `if` in a use case that mentions only fields of one model; `sumOf` / `filter` / date comparison over one model's own collection inside a use case; a domain `data class` whose body is empty across a feature that clearly has rules; the same expression in two use cases. Move the rule onto the model, delete the duplicate, and keep the use case's test for the orchestration only — the rule now has a mock-free test of its own.
+Grep-able smells, each meaning "a rule escaped its model": an `if` in a use case that mentions only fields of one model; `sumOf` / `filter` / date comparison over one model's own collection inside a use case; a domain `data class` whose body is empty across a feature that clearly has rules; the same expression in two use cases. A rule hidden in a file-private extension in the ViewModel's own file is still in the ViewModel — a pure function is not a placement.
+
+The opposite smells, each meaning "a rule was invented or a move went wrong": a derived property on a model that no ticket asked for; a rule supplied for a case the spec left silent; two copies of a formatter or constant after a calculation moved; an injected dependency with no binding anywhere. Move the rule onto the model, delete the duplicate, and keep the use case's test for the orchestration only — the rule now has a mock-free test of its own.
