@@ -97,7 +97,7 @@ The `SKILL.md` files are plain markdown, so they can be adapted to any editor th
 
 ### Testing & debugging
 
-- **`android-testing`** — test-first discipline plus the Android test traps: Compose-test dispatching (`StandardTestDispatcher` default, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, and animation/screenshot determinism.
+- **`android-testing`** — test-first discipline plus the Android/KMP test traps: Compose-test dispatching (`StandardTestDispatcher` default, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, animation/screenshot determinism, and `commonTest` names that compile on the JVM but fail Kotlin/Native.
 - **`android-debugging`** — debugging Android and KMP issues: Logcat, ADB, ANR traces, R8 stack trace decoding (forward and inverse-mapping), Perfetto trace investigation escalation, memory leaks, Gradle build failures, and Compose recomposition bugs.
 
 ### Platform APIs
