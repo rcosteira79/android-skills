@@ -1,0 +1,22 @@
+{
+  "name": "android-skills",
+  "version": "5.6.0",
+  "description": "Android and KMP development skills — architecture, Compose, coroutines, networking, persistence, dependency injection, testing, debugging, and Gradle.",
+  "author": {
+    "name": "Ricardo Costeira"
+  },
+  "homepage": "https://github.com/rcosteira79/android-skills",
+  "repository": "https://github.com/rcosteira79/android-skills",
+  "license": "MIT",
+  "keywords": ["android", "kotlin", "kmp", "compose", "coroutines", "gradle", "testing"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Android Skills",
+    "shortDescription": "Android and KMP architecture, coding conventions, and testing.",
+    "longDescription": "21 skills covering Android and Kotlin Multiplatform architecture, Compose UI, coroutines and Flow, networking, persistence, dependency injection, testing, debugging, and Gradle. Includes shared coding standards and focused implementation references.",
+    "developerName": "Ricardo Costeira",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use Android Skills to implement and test this Android or KMP feature."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "android-skills",
+  "interface": {
+    "displayName": "Android Skills"
+  },
+  "plugins": [
+    {
+      "name": "android-skills",
+      "source": {
+        "source": "local",
+        "path": "./plugins/android-skills"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -2,11 +2,12 @@
 
 # Android Skills
 
-**Android & KMP development skills for Claude Code and Copilot CLI** — architecture, Compose, coroutines, flows, networking, persistence, dependency injection, testing, debugging, and Gradle.
+**Android & KMP development skills for Codex, Claude Code, and Copilot CLI** — architecture, Compose, coroutines, flows, networking, persistence, dependency injection, testing, debugging, and Gradle.
 
 ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Frcosteira79%2Fandroid-skills%2Fmain%2F.claude-plugin%2Fmarketplace.json&query=%24.metadata.version&label=version&color=3b82f6&prefix=v)
 ![skills](https://img.shields.io/badge/skills-21-8b5cf6)
 ![license](https://img.shields.io/badge/license-MIT-2f9e6f)
+![Codex](https://img.shields.io/badge/Codex-plugin-10a37f)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-d97757)
 ![Copilot CLI](https://img.shields.io/badge/Copilot_CLI-plugin-24292e)
 
@@ -24,6 +25,51 @@ Skills are invoked automatically based on context — working on Compose code ac
 - [License](#license)
 
 ## Installation
+
+### Codex (plugin)
+
+Use a current Codex CLI with `codex plugin` support. Register this repository as a marketplace, then install the plugin:
+
+```bash
+codex plugin marketplace add rcosteira79/android-skills
+codex plugin add android-skills@android-skills
+```
+
+Start a new Codex session after installation. Run `/skills` to check that the bundled skills are available, or explicitly request one in your prompt:
+
+```text
+Use $android-skills:android-dev and $android-skills:compose to implement this screen.
+```
+
+The plugin installs all 21 skills and their references together, preserving the `android-skills:` namespace used by cross-skill instructions. Companion tools are optional and installed separately; this package does not configure MCP servers or require service credentials.
+
+The GitHub commands require a published revision containing the Codex packaging. To test an unpublished branch or use an existing local checkout, run these commands from the repository root instead:
+
+```bash
+codex plugin marketplace add .
+codex plugin add android-skills@android-skills
+```
+
+Use one marketplace source at a time for the `android-skills` name. `codex plugin marketplace list` shows configured sources; remove the existing source with `codex plugin marketplace remove android-skills` before switching between GitHub and a local checkout.
+
+You can also browse configured marketplaces with `/plugins` in Codex CLI. Plugin support is available in Codex CLI and the desktop app; the IDE extension uses standalone skills instead. See the official [Codex plugin guide](https://developers.openai.com/codex/plugins) and [local skill installation guidance](https://developers.openai.com/codex/skills).
+
+#### Codex packaging
+
+Both hosts share the same skill sources:
+
+```text
+.agents/plugins/marketplace.json                # Codex marketplace
+.claude-plugin/marketplace.json                 # Claude Code marketplace
+plugins/android-skills/
+  .codex-plugin/plugin.json                     # Codex manifest
+  .claude-plugin/plugin.json                    # Claude Code manifest
+  skills/                                      # Shared skills and references
+```
+
+The Codex marketplace resolves `./plugins/android-skills` relative to the repository root. Its manifest declares `./skills/` relative to the plugin root. No generated copies of skills are needed.
+
+When releasing, keep the version in both plugin manifests and the Claude marketplace's `metadata.version` and plugin entry in sync. The Codex marketplace uses the plugin manifest's version. See [OpenAI's packaging documentation](https://developers.openai.com/plugins/build/plugins) for marketplace and manifest details.
 
 ### Claude Code (plugin)
 
