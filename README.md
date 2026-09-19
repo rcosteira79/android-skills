@@ -2,13 +2,13 @@
 
 # Android Skills
 
-**Android & KMP development skills for Codex, Claude Code, and Copilot CLI** — architecture, Compose, coroutines, flows, networking, persistence, dependency injection, testing, debugging, and Gradle.
+**Android & KMP development skills for Claude Code, Codex, and Copilot CLI** — architecture, Compose, coroutines, flows, networking, persistence, dependency injection, testing, debugging, and Gradle.
 
 ![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Frcosteira79%2Fandroid-skills%2Fmain%2F.claude-plugin%2Fmarketplace.json&query=%24.metadata.version&label=version&color=3b82f6&prefix=v)
 ![skills](https://img.shields.io/badge/skills-21-8b5cf6)
 ![license](https://img.shields.io/badge/license-MIT-2f9e6f)
-![Codex](https://img.shields.io/badge/Codex-plugin-10a37f)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-d97757)
+![Codex](https://img.shields.io/badge/Codex-plugin-10a37f)
 ![Copilot CLI](https://img.shields.io/badge/Copilot_CLI-plugin-24292e)
 
 </div>
@@ -25,6 +25,15 @@ Skills are invoked automatically based on context — working on Compose code ac
 - [License](#license)
 
 ## Installation
+
+### Claude Code (plugin)
+
+```
+/plugin marketplace add rcosteira79/android-skills
+/plugin install android-skills@android-skills
+```
+
+Updates are picked up automatically when the plugin version is bumped.
 
 ### Codex (plugin)
 
@@ -59,26 +68,17 @@ You can also browse configured marketplaces with `/plugins` in Codex CLI. Plugin
 Both hosts share the same skill sources:
 
 ```text
-.agents/plugins/marketplace.json                # Codex marketplace
 .claude-plugin/marketplace.json                 # Claude Code marketplace
+.agents/plugins/marketplace.json                # Codex marketplace
 plugins/android-skills/
-  .codex-plugin/plugin.json                     # Codex manifest
   .claude-plugin/plugin.json                    # Claude Code manifest
+  .codex-plugin/plugin.json                     # Codex manifest
   skills/                                      # Shared skills and references
 ```
 
 The Codex marketplace resolves `./plugins/android-skills` relative to the repository root. Its manifest declares `./skills/` relative to the plugin root. No generated copies of skills are needed.
 
 When releasing, keep the version in both plugin manifests and the Claude marketplace's `metadata.version` and plugin entry in sync. The Codex marketplace uses the plugin manifest's version. See [OpenAI's packaging documentation](https://developers.openai.com/plugins/build/plugins) for marketplace and manifest details.
-
-### Claude Code (plugin)
-
-```
-/plugin marketplace add rcosteira79/android-skills
-/plugin install android-skills@android-skills
-```
-
-Updates are picked up automatically when the plugin version is bumped.
 
 ### Copilot CLI (plugin)
 
