@@ -34,5 +34,6 @@ These constrain *how composables interact with navigation* — they catch projec
 3. **ViewModels emit navigation events via `Flow<NavEvent>`** (or `Channel<NavEvent>(BUFFERED).receiveAsFlow()`), collected in a `LaunchedEffect` that calls the navigator — don't inject `backStack` / `NavController` into the ViewModel.
 4. **Passing `entryDecorators` replaces the default list** — `NavDisplay`'s default is `listOf(rememberSaveableStateHolderNavEntryDecorator())`, so a custom list that omits it silently drops saved state. Re-add it.
 5. **Decorator order matters** — `rememberSaveableStateHolderNavEntryDecorator` wraps `rememberViewModelStoreNavEntryDecorator`, not the reverse, or ViewModels survive but their saved state doesn't.
+6. **Wrap tap-to-navigate in `dropUnlessResumed { }`** (`androidx.lifecycle.compose`) — `Button(onClick = dropUnlessResumed { backStack.add(Detail(id)) })`. A fast double-tap otherwise pushes the destination twice. `NavDisplay` holds an entry at `STARTED` until its transition settles, so the second tap is dropped. Google's Nav 3 recipes do this on every navigating click.
 
 **Carry-over from this skill:** `NavDisplay` owns its transitions (`transitionSpec` / `popTransitionSpec` / `predictivePopTransitionSpec`), so don't wrap a destination's content in `AnimatedContent` — same double-animation trap as Nav2 (see `references/animation.md`).
