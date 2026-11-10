@@ -42,8 +42,10 @@ Read the **full stack trace** — the root cause is usually at the bottom of the
 ANRs mean the main thread was blocked. Evidence:
 
 ```bash
-# Pull ANR trace from device
-adb pull /data/anr/traces.txt ./anr_traces.txt
+# List, then pull the ANR trace (one traces.txt on old releases, anr_* files on newer ones;
+# without root, capture `adb bugreport` instead)
+adb shell ls /data/anr
+adb pull /data/anr/<filename>
 
 # Or stream while reproducing
 adb logcat -s "ActivityManager:E" | grep -A 30 "ANR in"
@@ -86,18 +88,15 @@ adb pull /data/misc/perfetto-traces/trace.pftrace ./
 
 Then open the trace at https://ui.perfetto.dev and run SQL against it (`SELECT name, dur FROM slice WHERE dur > 16e6` for frames slower than 16ms, etc.).
 
-For an agent-driven workflow — translating an investigation intent (jank, slow startup, battery drain) into the right Perfetto SQL and iterating across the trace — see Google's [`perfetto-sql`](https://github.com/android/skills/tree/main/profilers/perfetto-sql) and [`perfetto-trace-analysis`](https://github.com/android/skills/tree/main/profilers/perfetto-trace-analysis) skills (`android skills list` to check for a local install; `android skills add perfetto-sql perfetto-trace-analysis` otherwise). They provide Domain Hints (CPU/Graphics/I/O/IPC/Memory/Power), a mandatory scratchpad chain-of-evidence pattern, and `GLOB`-over-`LIKE` query rules.
+For an agent-driven workflow — recording a trace, then translating an investigation intent (jank, slow startup, battery drain) into Perfetto SQL — use Google's [`android-profiler`](https://github.com/android/skills/tree/main/profilers/android-profiler) skill (`android skills list` to check for a local install; `android skills add android-profiler` otherwise). For ANR dumps, Google's [`anr-audit-and-fix`](https://github.com/android/skills/tree/main/performance/anr-audit-and-fix) goes deeper than the section above.
 
 ### R8 / ProGuard — Obfuscated Stack Traces
 
 Release crash stack traces are obfuscated. Decode them with the mapping file generated at build time.
 
 ```bash
-# retrace a crash (AGP 7+)
-./gradlew :app:retrace --stacktrace-file crash.txt
-
-# Or use the retrace CLI directly
-java -jar retrace.jar mapping.txt crash.txt
+# R8 retrace ships in the SDK command-line tools (cmdline-tools/<version>/bin/)
+retrace mapping.txt crash.txt
 ```
 
 Mapping files are in `app/build/outputs/mapping/<variant>/mapping.txt`. Always archive them alongside release builds.
@@ -141,14 +140,11 @@ When a bug is visual (wrong element state, missing content, overlap), dump the l
 # Full layout tree as JSON — search by class/text/bounds instead of parsing an image
 android layout --pretty
 
-# Only elements that changed since last call — useful for animations or transient state
-android layout --diff --pretty
-
 # Target a specific device, write to file
 android layout --device=emulator-5554 -o layout.json
 ```
 
-Prefer `android layout` over `adb screencap` whenever the question is "what is the UI state?" rather than "what does it look like?". The JSON tree is grep-able and survives `--diff` state across invocations.
+Prefer `android layout` over `adb screencap` whenever the question is "what is the UI state?" rather than "what does it look like?". The JSON tree is grep-able; to see what changed between two states, write each dump with `-o` and diff the files.
 
 ### Compose Recomposition Bugs
 
@@ -156,7 +152,7 @@ For deeper Compose performance analysis (stability, recomposition skipping, base
 
 Wrong state or unexpected re-renders:
 
-1. **Layout Inspector** (Android Studio) → enable "Show recomposition counts" to identify hot paths. For headless/CLI workflows, `android layout --diff` gives a JSON tree of what changed between frames.
+1. **Layout Inspector** (Android Studio) → enable "Show recomposition counts" to identify hot paths. For headless/CLI workflows, diff two `android layout -o <file>` dumps.
 2. Add `SideEffect { Log.d("Recompose", "MyComposable recomposed") }` temporarily to confirm
 3. Check that `State` objects are not created inside the composition (use `remember`)
 4. Verify `equals()` on state data classes — a new object with same values still triggers recomposition if `equals` is not implemented

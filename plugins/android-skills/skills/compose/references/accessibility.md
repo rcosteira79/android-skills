@@ -4,7 +4,7 @@ This reference covers traversal order and live regions, not the basics of `conte
 
 ## Traversal order — `traversalIndex` and `isTraversalGroup`
 
-Screen-reader order follows layout position by default. When the visual order and the reading order should differ — or when scattered elements should be read as one unit — set it explicitly. This is the part that's easy to skip.
+Screen-reader order follows layout position by default. When the visual order and the reading order should differ — or when scattered elements should be read together — set it explicitly. This is the part that's easy to skip.
 
 ```kotlin
 // Reorder within a group: lower traversalIndex is read first
@@ -13,7 +13,8 @@ Row {
     Button(onClick = {}, modifier = Modifier.semantics { traversalIndex = 0f }) { Text("Read first") }
 }
 
-// Read a label + value as a single focus stop
+// Visit every child of this group before moving on (still one focus stop per child;
+// for a single stop use semantics(mergeDescendants = true))
 Column(modifier = Modifier.semantics { isTraversalGroup = true }) {
     Text("Label")
     Text("Value")

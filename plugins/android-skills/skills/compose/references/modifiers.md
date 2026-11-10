@@ -193,10 +193,10 @@ Modifiers apply left-to-right in the DSL but conceptually wrap bottom-to-top —
 
 ```kotlin
 Modifier.background(Color.Red).padding(16.dp).size(100.dp)   // red wraps the padded 100dp box
-Modifier.size(100.dp).padding(16.dp).background(Color.Red)   // 100dp box is padded, then the 132dp total gets red
+Modifier.size(100.dp).padding(16.dp).background(Color.Red)   // outer stays 100dp; padding sits inside it, red fills the inner 68dp
 ```
 
-`.size` after `.padding` excludes the padding from the final outer size; `.clip` before `.background` clips the background to the shape (after, it doesn't). This is the ordering reference `compose/references/design-to-compose.md` and `view-composition.md` point here for.
+`.padding(16.dp).size(100.dp)` is 132dp outside with 100dp of content, `.size(100.dp).padding(16.dp)` is 100dp outside with 68dp of content; `.clip` before `.background` clips the background to the shape (after, it doesn't). This is the ordering reference `compose/references/design-to-compose.md` and `view-composition.md` point here for.
 
 ## Custom modifiers, semantics, testTag — defer
 

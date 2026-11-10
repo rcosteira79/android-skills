@@ -9,18 +9,7 @@ Two source trees, two access strategies. AOSP lives on `android.googlesource.com
 
 ## Preferred: the android-sources MCP
 
-If `mcp__android-sources__*` tools are available, **always prefer them** over WebFetch/gh — local source, sub-10ms lookups:
-
-| Goal | MCP tool |
-|------|----------|
-| Find a class by name/pattern | `search_classes` (glob, e.g. `*ViewModel*`) |
-| Read full class / a method / its members | `lookup_class` / `lookup_method` / `list_class_members` |
-| Class hierarchy | `get_class_hierarchy` |
-| Search text/regex across sources | `search_in_source` |
-| List AndroidX artifact versions | `list_available_versions` |
-| Definition / references / type info (LSP) | `goto_definition` / `find_references` / `get_type_info` |
-
-Fall back to the WebFetch/gh strategies below only when the MCP tools aren't available.
+If `mcp__android-sources__*` tools are available, **always prefer them** over WebFetch/gh — local source, sub-10ms lookups. Fall back to the strategies below only when they aren't.
 
 ## Fallback: WebFetch + gh
 

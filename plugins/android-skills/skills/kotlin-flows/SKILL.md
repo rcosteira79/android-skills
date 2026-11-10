@@ -19,7 +19,7 @@ This reference covers the Flow traps and semantic edge cases — Channel vs Shar
 
 **`Channel.receiveAsFlow()` is fan-out, NOT broadcast.** With multiple collectors, each event reaches **one** collector (the framework picks which), not all of them. If every collector must see every event, you need `SharedFlow`. This is the trap that's easy to fall into when reaching for `Channel` to multicast.
 
-For single-consumer one-shot events, `Channel(BUFFERED).receiveAsFlow()` is the default because `send` suspends until consumed (the event is queued, never dropped), whereas `SharedFlow(replay = 0)` drops the emission if no collector is active at the instant of emission. Expose the `Flow`, never the `Channel`, and collect with `collect` inside `LaunchedEffect` — **not** `collectAsStateWithLifecycle`, which retains the last event as state and re-fires it on every recomposition / config change.
+For single-consumer one-shot events, `Channel(BUFFERED).receiveAsFlow()` is the default because the event is buffered until the collector takes it (`send` suspends when the buffer is full; `trySend` fails instead, so check its result), whereas `SharedFlow(replay = 0)` drops the emission if no collector is active at the instant of emission. Expose the `Flow`, never the `Channel`, and collect with `collect` inside `LaunchedEffect` — **not** `collectAsStateWithLifecycle`, which retains the last event as state and re-fires it on every recomposition / config change.
 
 ```kotlin
 private val _events = Channel<UiEvent>(Channel.BUFFERED)

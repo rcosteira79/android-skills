@@ -59,7 +59,7 @@ Read the relevant reference file(s) from `references/` before answering:
 | Traversal order (`traversalIndex` / `isTraversalGroup`), live-region mode (`Polite` vs `Assertive`) | `references/accessibility.md` |
 | `FocusRequester`, `focusable()`, `focusProperties`, key events, D-pad, TV, keyboard, focus restoration | `references/focus-navigation.md` |
 | Removed/replaced APIs, migration paths from older Compose versions | `references/deprecated-patterns.md` |
-| **Styles API** (experimental): `Style {}`, `MutableStyleState`, `Modifier.styleable()` | `references/styles-experimental.md` |
+| **Styles API** (experimental, being redesigned — property definitions are moving out of foundation into the design-system layer) | No reference kept. Read `android docs fetch kb://android/develop/ui/compose/styles/styles-update` and the `androidx.compose.foundation.style` source for the version in use. `styleable()` without an explicit `styleState` tracks no interaction state. |
 | Transcribing a design — exact copy/casing/number format, exact-token-vs-near-neighbour, missing-token-added-not-substituted, export-over-render as source of truth; Figma `dropShadow`/`innerShadow` (1.9+, chain placement), spacing/elevation design-token CompositionLocal | `references/design-to-compose.md` |
 | Production crash patterns, defensive coding, state/performance rules | `references/production-crash-playbook.md` |
 | CMP gotchas (`collectAsState`-in-commonMain, commonMain `@Preview` package, Lottie→Kottie, compiler-stability-non-JVM) + Android-only→CMP migration | `references/multiplatform.md` |
@@ -99,54 +99,7 @@ When referencing Compose internals, point to the exact source file:
 
 ## Source Code Verification
 
-Always verify against **live source code** — never rely on training data alone.
-
-### Tier 1 (Preferred): `android-sources` MCP server
-
-When available, use the MCP tools for fast, precise lookups:
-
-```
-lookup_class(className: "LazyListState")
-lookup_method(className: "Composer", methodName: "startRestartGroup")
-search_in_source(query: "fun rememberLazyListState")
-list_class_members(className: "Modifier")
-get_class_hierarchy(className: "LazyListState")
-find_references(className: "SnapshotState", methodName: "value")
-```
-
-### Tier 2 (Fallback): Raw GitHub URLs
-
-If the MCP server is unavailable, fetch source directly:
-
-- **AndroidX**: `https://raw.githubusercontent.com/androidx/androidx/androidx-main/{path}`
-- **Directory listing**: `gh api repos/androidx/androidx/contents/{path}`
-- **CMP**: `https://raw.githubusercontent.com/JetBrains/compose-multiplatform-core/jb-main/{path}`
-- **AOSP platform**: `https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/{path}?format=TEXT` (base64)
-
-### Two-layer approach
-1. **Start with guidance** — read the topic-specific reference (e.g., `references/state-management.md`)
-2. **Verify against live source** — use MCP tools or raw GitHub to confirm behavior
-
-### Source tree map
-```
-androidx/androidx (branch: androidx-main)
-├── compose/runtime/runtime/src/commonMain/kotlin/androidx/compose/runtime/
-├── compose/ui/ui/src/androidMain/kotlin/androidx/compose/ui/platform/
-├── compose/ui/ui/src/commonMain/kotlin/androidx/compose/ui/
-├── compose/foundation/foundation/src/commonMain/kotlin/androidx/compose/foundation/
-├── compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/
-└── compose/navigation/navigation-compose/src/commonMain/kotlin/androidx/navigation/compose/
-
-compose-multiplatform-core (branch: jb-main)
-├── compose/ui/ui/src/desktopMain/kotlin/androidx/compose/ui/window/
-├── compose/ui/ui/src/iosMain/kotlin/androidx/compose/ui/window/
-├── compose/ui/ui/src/webMain/kotlin/androidx/compose/ui/window/
-├── compose/ui/ui/src/skikoMain/kotlin/androidx/compose/ui/
-└── compose/foundation/foundation/src/skikoMain/kotlin/androidx/compose/foundation/
-
-compose-multiplatform (resources library)
-└── components/resources/library/src/commonMain/
-```
+Verify against **live source code** — never rely on training data alone. Read the topic reference first, then confirm the behaviour in source: `android-skills:android-source-search` holds the lookup strategy (the `android-sources` MCP when present, raw GitHub / Gitiles otherwise). Compose Multiplatform source is `JetBrains/compose-multiplatform-core`, branch `jb-main`.
 
 ## Authoritative Docs
 

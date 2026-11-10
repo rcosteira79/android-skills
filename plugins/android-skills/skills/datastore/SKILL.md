@@ -20,7 +20,7 @@ Rule of thumb: if a `WHERE` clause would be useful, use Room.
 
 ## The two traps
 
-**`.catch` must match `IOException` specifically — never a broad `catch`.** A bare `catch { emit(emptyPreferences()) }` swallows `CancellationException` (breaking structured concurrency) and hides serializer/corruption errors behind a silent empty state.
+**`.catch` must match `IOException` specifically — never a broad `catch`.** A bare `catch { emit(emptyPreferences()) }` hides serializer/corruption errors behind a silent empty state.
 
 ```kotlin
 val settings: Flow<UserSettings> = dataStore.data

@@ -93,7 +93,7 @@ Box(Modifier.fillMaxWidth().onSizeChanged { widthPx = it.width }) {
 }
 ```
 
-If two siblings must know each other's measured size, use `Modifier.decorateMeasureConstraints` (Foundation 1.10+) rather than round-tripping through composition. **3. Draw → composition** is the same shape, vanishingly rare. **General rule:** state writes go forward (composition → layout → draw), never backward; when a backward write is the right shape (a sticky header needing its measured height), the cure is a layout-phase API, not a `MutableState` that bridges back into composition.
+If two siblings must know each other's measured size, measure them together in a custom `Layout` (or `SubcomposeLayout`) rather than round-tripping through composition. **3. Draw → composition** is the same shape, vanishingly rare. **General rule:** state writes go forward (composition → layout → draw), never backward; when a backward write is the right shape (a sticky header needing its measured height), the cure is a layout-phase API, not a `MutableState` that bridges back into composition.
 
 ## `@ReadOnlyComposable` — the bidirectional contract
 
@@ -147,4 +147,4 @@ Reserve ephemeral `Channel`/`SharedFlow` for genuinely fire-and-forget commands 
 
 ## Compose Multiplatform
 
-`rememberSaveable` / `Bundle` / `@Parcelize` are **Android-only** — on CMP use `@Serializable` + a kotlinx-serialization-based `Saver`. `collectAsStateWithLifecycle()` is Android-specific; on CMP `commonMain`, `collectAsState()` does NOT stop collecting in the background unless `lifecycle-runtime-compose:2.10.0+` provides the lifecycle-aware variant in `commonMain`.
+`rememberSaveable` / `Bundle` / `@Parcelize` are **Android-only** — on CMP use `@Serializable` + a kotlinx-serialization-based `Saver`. `collectAsStateWithLifecycle()` is available in `commonMain` (`org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose`); plain `collectAsState()` does not stop collecting in the background.

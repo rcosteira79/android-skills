@@ -4,7 +4,7 @@ This reference covers the migration facts and cross-platform gotchas, not the ba
 
 ## Android-only APIs (nearly everything else is in commonMain)
 
-`AndroidView`, `BackHandler`, `dynamicColorScheme()`, `LocalContext`, **`collectAsStateWithLifecycle()`**, `hiltViewModel()`, Baseline Profiles / Macrobenchmark. Desktop-only: `Window` / `MenuBar` / `Tray`, `DialogWindow`, scrollbars, `SwingPanel`. iOS-only: `UIKitView` / `UIKitViewController`, `ComposeUIViewController`, `LocalUIViewController`.
+`AndroidView`, `BackHandler`, `dynamicColorScheme()`, `LocalContext`, `hiltViewModel()`, Baseline Profiles / Macrobenchmark. Desktop-only: `Window` / `MenuBar` / `Tray`, `DialogWindow`, scrollbars, `SwingPanel`. iOS-only: `UIKitView` / `UIKitViewController`, `ComposeUIViewController`, `LocalUIViewController`.
 
 ## Migration: Android-only → CMP
 
@@ -16,14 +16,13 @@ This reference covers the migration facts and cross-platform gotchas, not the ba
 | Coil 2.x | Coil 3.x — same API, fully KMP (`android-skills:coil-compose`) |
 | **Lottie** | **Kottie / Compottie** — `com.airbnb.lottie:lottie-compose` is Android-only |
 | `R.drawable.*` / `R.string.*` | `Res.drawable.*` / `Res.string.*` |
-| **`collectAsStateWithLifecycle()`** | **`collectAsState()`** — see gotcha below |
 | `LocalContext.current` | a common interface (or `expect`/`actual`) — see gotcha below |
 | `rememberSaveable` + `Bundle` + `@Parcelize` | `@Serializable` + a custom `Saver` (Bundle/Parcelize are Android-only) |
 | `BackHandler` | `expect`/`actual` per platform |
 
 ## Cross-platform gotchas
 
-**`collectAsState()`, not `collectAsStateWithLifecycle()`, in `commonMain`** — the lifecycle-aware variant is Android-only, yet it's easy to reach for in shared code. (Desktop/Web don't background like Android; iOS CMP handles lifecycle — unless `lifecycle-runtime-compose:2.10.0+` surfaces the lifecycle-aware variant in commonMain.)
+**`collectAsStateWithLifecycle()` works in `commonMain`** — it is declared in the common source set of `lifecycle-runtime-compose`; in a CMP project depend on `org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose`. Don't write an `expect`/`actual` wrapper that falls back to `collectAsState()` on other targets.
 
 **`@Preview` in commonMain is `org.jetbrains.compose.ui.tooling.preview.Preview`, NOT `androidx.compose.ui.tooling.preview.Preview`** — the androidx one is Android-only and won't compile in commonMain. Add `compose.components.uiToolingPreview`. Android Studio renders androidMain previews; IntelliJ/Fleet render commonMain ones.
 
@@ -37,4 +36,4 @@ This reference covers the migration facts and cross-platform gotchas, not the ba
 
 ## Navigation
 
-`androidx.navigation:navigation-compose` is fully multiplatform as of 2.8.0+ (`@Serializable` type-safe routes work in commonMain). Deep links integrate with `Intent` / manifest on Android but must be wired manually elsewhere (iOS URL scheme, Web URL). Navigation 3's `navigation3-common` is multiplatform but `navigation3-ui` isn't fully KMP yet — wait for stable before relying on it. (Voyager and Decompose are third-party KMP alternatives.)
+`androidx.navigation:navigation-compose` is fully multiplatform as of 2.8.0+ (`@Serializable` type-safe routes work in commonMain). Deep links integrate with `Intent` / manifest on Android but must be wired manually elsewhere (iOS URL scheme, Web URL). Navigation 3 is supported on Android, iOS, desktop and web from Compose Multiplatform 1.10. (Voyager and Decompose are third-party KMP alternatives.)

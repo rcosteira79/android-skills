@@ -52,7 +52,7 @@ Without `itemKey`, `LazyColumn` reuses slots by index — a prepended page shift
 
 ## `RemoteMediator` (offline-first)
 
-With offline-first paging the Room DAO is the `PagingSource` and a `RemoteMediator` drives network refresh + DB writes. Wrap those writes in `db.withTransaction { }`, and clear local state on `LoadType.REFRESH`. Gate the full-screen loader on `loadState.source.refresh` + `itemCount == 0` — **not** the combined `loadState.refresh`, which flips to `NotLoading` before Room finishes writing and drops the spinner a frame early.
+With offline-first paging the Room DAO is the `PagingSource` and a `RemoteMediator` drives network refresh + DB writes. Wrap those writes in `db.withTransaction { }`, and clear local state on `LoadType.REFRESH`. Gate the full-screen loader on the combined `loadState.refresh` + `itemCount == 0`: after a `Loading`, the combined state waits for both `source` and `mediator` to reach `NotLoading`, so the remote write has landed. Read `loadState.source` / `loadState.mediator` directly only to treat them differently — e.g. keep showing cached rows when the `mediator` refresh fails.
 
 ## Testing — `TestPager` / `asSnapshot`, never `.first()`
 

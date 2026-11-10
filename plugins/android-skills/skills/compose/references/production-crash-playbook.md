@@ -283,12 +283,10 @@ fun FilteredList(allItems: List<Item>, filter: String) {
 ### Fix
 
 ```kotlin
-// GOOD: derive the full filtered list; count and access are always consistent
+// GOOD: compute the full filtered list once, keyed on its inputs; count and access are always consistent
 @Composable
 fun FilteredList(allItems: List<Item>, filter: String) {
-    val filteredItems by remember {
-        derivedStateOf { allItems.filter { it.name.contains(filter) } }
-    }
+    val filteredItems = remember(allItems, filter) { allItems.filter { it.name.contains(filter) } }
 
     LazyColumn {
         items(
@@ -340,31 +338,7 @@ val locationState by locationFlow.collectAsStateWithLifecycle(
 )
 ```
 
-### Compose Multiplatform Consideration
-
-`collectAsStateWithLifecycle` is Android-only because it depends on `androidx.lifecycle`. In Compose Multiplatform (CMP) projects, use `collectAsState()` on non-Android targets and `collectAsStateWithLifecycle()` on Android via an `expect`/`actual` pattern:
-
-```kotlin
-// commonMain
-@Composable
-expect fun <T> Flow<T>.collectAsStateMultiplatform(
-    initial: T
-): State<T>
-
-// androidMain
-@Composable
-actual fun <T> Flow<T>.collectAsStateMultiplatform(
-    initial: T
-): State<T> = collectAsStateWithLifecycle(initialValue = initial)
-
-// iosMain / desktopMain / wasmJsMain
-@Composable
-actual fun <T> Flow<T>.collectAsStateMultiplatform(
-    initial: T
-): State<T> = collectAsState(initial = initial)
-```
-
-**Rule:** On Android, always use `collectAsStateWithLifecycle` for `StateFlow` and `SharedFlow`. Reserve `collectAsState` for Compose Multiplatform common code or non-lifecycle-aware contexts only.
+**Rule:** Use `collectAsStateWithLifecycle` for `StateFlow` and `SharedFlow`. It is available in Compose Multiplatform `commonMain` too (`org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose`), so no `expect`/`actual` wrapper is needed.
 
 ---
 
@@ -407,19 +381,9 @@ fun SafeShimmerItem(
             .height(itemHeight)
             .clip(RoundedCornerShape(8.dp))
     ) {
-        val result = runCatching {
-            Canvas(modifier = Modifier.matchParentSize()) {
-                if (size.minDimension <= 0f) return@Canvas
-                drawRect(brush = brush)
-            }
-        }
-        if (result.isFailure) {
-            // Fallback: solid color placeholder when Canvas fails
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(shimmerColor, RoundedCornerShape(8.dp))
-            )
+        Canvas(modifier = Modifier.matchParentSize()) {
+            if (size.minDimension <= 0f) return@Canvas
+            drawRect(brush = brush)
         }
     }
 }
@@ -444,7 +408,7 @@ fun ShimmerLoadingList() {
 }
 ```
 
-**Rule:** Wrap all shimmer and placeholder drawing in `try/catch` or explicit size guards. Provide a solid-color fallback so the loading state is never invisible and never crashes. Avoid `runCatching` in suspend contexts — it catches `CancellationException` and breaks structured concurrency.
+**Rule:** Guard shimmer and placeholder drawing with an explicit size check inside the draw block. Don't wrap a composable call in `try/catch` or `runCatching` — drawing runs later, in the draw phase, so the catch never sees a draw exception.
 
 ---
 
