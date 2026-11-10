@@ -76,7 +76,7 @@ fun ConversationListScreen(items: List<Conversation>) {
 
 ## Impression logging — not from an effect in the item
 
-Lazy layouts compose items ahead of the viewport (prefetch), so a `LaunchedEffect(Unit)` or `DisposableEffect` inside an item fires for rows the user never saw. Log from `Modifier.onVisibilityChanged { visible -> … }` on the item, with a dwell threshold.
+Lazy layouts compose items ahead of the viewport (prefetch), so a `LaunchedEffect(Unit)` or `DisposableEffect` inside an item fires for rows the user never saw. Log from `Modifier.onVisibilityChanged(minDurationMs = 500, minFractionVisible = 0.5f) { visible -> if (visible) … }` on the item (`androidx.compose.ui.layout`; the defaults are `0` and `1f`), and de-duplicate by id in the ViewModel because rows re-enter.
 
 ## Infinite scroll — derive the trigger, and test across OEMs
 
