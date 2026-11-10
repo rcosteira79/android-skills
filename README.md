@@ -109,7 +109,7 @@ The `SKILL.md` files are plain markdown, so they can be adapted to any editor th
 
 ### UI — Compose & design
 
-- **`compose`** — Jetpack Compose expert guidance: state management (`remember`, `derivedStateOf`, hoisting, the unified keying rule, cross-phase back-writing), Modifier chains, lazy lists (`LazyLayoutCacheWindow` prefetch tuning), navigation (Nav 2 + Nav 3 guardrails), animation, side effects (`LifecycleStartEffect`/`LifecycleResumeEffect`), theming, accessibility, performance (Argument Change Reasons, the five compiler stability types, escape-hatch annotations, baseline profiles), focus/key-event navigation (D-pad/TV/ChromeOS, focus restoration, dialog focus traps, predictive-back), and a production-crash playbook with CMP equivalents.
+- **`compose`** — Jetpack Compose expert guidance: state management (`remember`, `derivedStateOf`, hoisting, the unified keying rule, cross-phase back-writing), Modifier chains, lazy lists (`LazyLayoutCacheWindow` prefetch tuning), navigation (Nav 2 + Nav 3 guardrails), animation, side effects (`LifecycleStartEffect`/`LifecycleResumeEffect`), theming, accessibility, performance (Argument Change Reasons, the five compiler stability types, escape-hatch annotations, baseline profiles), focus/key-event navigation (D-pad/TV/ChromeOS, focus restoration, dialog focus traps, predictive-back), and lazy-list crash patterns (duplicate keys, per-item `rememberSaveable`).
 - **`android-ux`** — Material Design 3 UX principles: foldable postures (tabletop, book mode), M3 contrast levels (`Hct`/`SchemeContent`), motion duration tokens and reduced motion, and an M3 compliance audit scoring screens across 10 categories with grep-based quick checks.
 - **`coil-compose`** — image loading in Compose and CMP with Coil 3: the KMP specifics (`LocalPlatformContext`, `SingletonImageLoader.setSafe`, `coil-compose` vs `coil-compose-core`) and two lazy-list performance guardrails (never `SubcomposeAsyncImage` in lists; `rememberAsyncImagePainter` needs an explicit size).
 
@@ -144,7 +144,7 @@ The `SKILL.md` files are plain markdown, so they can be adapted to any editor th
 ### Testing & debugging
 
 - **`android-testing`** — test-first discipline plus the Android/KMP test traps: Compose-test dispatching (v1 vs v2 test APIs, the two-schedulers trap), semantics-first selectors, choosing the smallest test shape, test-clock vs wall-clock, animation/screenshot determinism, and `commonTest` names that compile on the JVM but fail Kotlin/Native.
-- **`android-debugging`** — debugging Android and KMP issues: Logcat, ADB, ANR traces, R8 stack trace decoding (forward and inverse-mapping), Perfetto trace investigation escalation, memory leaks, Gradle build failures, and Compose recomposition bugs.
+- **`android-debugging`** — debugging Android and KMP issues on a root-cause-first foundation: ANR trace retrieval, baseline-first performance investigation, R8 stack trace decoding (forward and inverse-mapping), runtime UI inspection with `android layout`, and a per-session-tag template for tracing a bad value across layers. Defers Perfetto and ANR triage to Google's `android-profiler` and `anr-audit-and-fix` skills.
 
 ### Platform APIs
 
@@ -175,7 +175,7 @@ The skills work standalone, but several integrate with external tools for enhanc
 
 ## Related projects
 
-- [android/skills](https://github.com/android/skills) — Google's official Android agent skills: AGP 9 migration (pure-Android), XML-to-Compose migration, Navigation 3, R8 analysis, Play Billing upgrades, and edge-to-edge support.
+- [android/skills](https://github.com/android/skills) — Google's official Android agent skills: AGP 9 migration (pure-Android), XML-to-Compose migration, Navigation 3, Compose performance audits, profiling (Perfetto), ANR triage, R8 analysis, adaptive layouts, Play Billing upgrades, and edge-to-edge support.
 - [Kotlin/kotlin-agent-skills](https://github.com/Kotlin/kotlin-agent-skills) — JetBrains' official Kotlin skills: AGP 9 migration for KMP, CocoaPods → SwiftPM migration, framework-aware Java-to-Kotlin conversion, and Kotlin backend/JPA entity mapping.
 - [awesome-android-agent-skills](https://github.com/new-silvermoon/awesome-android-agent-skills) — curated list of Android agent skills.
 - [chrisbanes/skills](https://github.com/chrisbanes/skills) — narrow, opinionated Compose and Kotlin skills covering state authoring, side effects, recomposition performance, stability diagnostics, focus navigation, UI testing, structured concurrency, and KMP `expect`/`actual` boundaries.

@@ -48,6 +48,12 @@ val uiState: StateFlow<UiState>
 
 Applies wherever a `StateFlow` / `SharedFlow` is exposed from a mutable backing (`MutableStateFlow` *is* a `StateFlow`, so the default getter type-checks). It does **not** fit a `Channel` exposed as a `Flow` — a `Channel` isn't a `Flow`, so keep the explicit `_events` / `receiveAsFlow()` pair above. On Kotlin < 2.4 (check the version catalog), keep the classic `private val _x` + `val x = _x.asStateFlow()`.
 
+## `StateFlow` traps
+
+- **The `update { }` lambda can run more than once** — it retries when another writer changes the value concurrently. Keep it pure: do the I/O, read the clock, and generate the id *before* calling `update`, never inside it.
+- **Expose `stateIn` as a property, not a function.** `fun items() = repo.items().stateIn(…)` starts a new sharing coroutine on every call.
+- **`.value` on a `WhileSubscribed` flow is stale while nobody collects** — it holds the initial or last value, not the current upstream one. Don't read it from a ViewModel method to make a decision; collect, or read the source.
+
 ## Callback bridging
 
 ```kotlin

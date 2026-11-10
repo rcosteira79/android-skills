@@ -48,7 +48,7 @@ items(
 ) { idx -> pagingItems[idx]?.let { RepoRow(it) } }
 ```
 
-Without `itemKey`, `LazyColumn` reuses slots by index — a prepended page shifts every existing item's identity, so row state / `rememberSaveable` / animations target the wrong slot and scroll visibly jumps. (`pagingItems[i]` reads *and* triggers a load near the edge; `peek(i)` reads without loading. Call `retry()` / `refresh()` from event handlers or a `LaunchedEffect`, never a composable body.)
+Without `itemKey`, `LazyColumn` reuses slots by index — a prepended page shifts every existing item's identity, so row state / `rememberSaveable` / animations target the wrong slot and scroll visibly jumps. (`pagingItems[i]` reads *and* triggers a load near the edge; `peek(i)` reads without loading. Call `retry()` / `refresh()` from event handlers, never a composable body — and not from a `LaunchedEffect(Unit)`, which re-triggers the load every time the screen re-enters composition. Collect with `collectAsLazyPagingItems()`, never `collectAsStateWithLifecycle()`. Show a full-screen error only when `itemCount == 0`; with rows already on screen, keep the list and surface the error in a snackbar or footer.)
 
 ## `RemoteMediator` (offline-first)
 

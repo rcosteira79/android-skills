@@ -71,7 +71,9 @@ A composable's contract is "render state, emit callbacks" — test exactly that;
 | State holder updates UI correctly | State-holder unit test + ONE wiring smoke test |
 | Lifecycle, navigation, or DI integration itself | Integration test (`createAndroidComposeRule`, Hilt rule, real graph) |
 
-**Test clock vs wall clock:** for any Compose-state-observable condition use `mainClock.advanceTimeUntil(ms) { state.value == Done }` (deterministic, fast); use `rule.waitUntil(ms) { … }` only for non-Compose conditions (`Job.isCompleted`, an external counter). Mixing the two in one test is a common flake source.
+**Test clock vs wall clock:** for any Compose-state-observable condition use `mainClock.advanceTimeUntil(ms) { state.value == Done }` (deterministic, fast); use `rule.waitUntil(ms) { … }` only for non-Compose conditions (`Job.isCompleted`, an external counter). Mixing the two in one test is a common flake source. Inside `waitUntil { }` return a Boolean (`onNode(…).isDisplayed()`), or use `waitUntilExactlyOneExists` / `waitUntilDoesNotExist` — a throwing `assertIsDisplayed()` fails the test on the first poll instead of waiting.
+
+**`mainClock.advanceTimeBy(ms)` rounds up to a whole frame (16ms)** — `advanceTimeBy(50)` advances 64ms. Pass `ignoreFrameDuration = true` when an assertion depends on the exact elapsed time.
 
 **Animation tests need `mainClock.autoAdvance = false` set *before* `setContent`** — otherwise the framework's `InfiniteAnimationPolicy` throws `CancellationException` on indeterminate animations, and finite animations finish in one auto-advanced burst with no observable intermediate state. After pausing, drive frames with `advanceTimeByFrame()` (kick-off) then `advanceTimeBy(durationMillis)`.
 

@@ -34,7 +34,7 @@ A canonical list of old → current Compose APIs, for catching retired Accompani
   DropdownMenuItem(text = { Text("Profile") }, onClick = { … }, leadingIcon = { Icon(Icons.Default.Person, null) })
   ```
 
-- **API 35+ edge-to-edge is the default** — on Android 15+, content draws behind the system bars by default; `enableEdgeToEdge()` manages bar colors and `WindowInsets.safeDrawing` handles notch-aware layouts. Manual `Modifier.systemBarsPadding()` is superseded.
+- **API 35+ edge-to-edge is the default** — on Android 15+, content draws behind the system bars by default. Insets and IME handling: Google's `edge-to-edge` skill (`android skills add edge-to-edge`). The trap worth knowing here: `Scaffold`'s default `contentWindowInsets` has no IME insets, so add `imePadding()` (before `verticalScroll`) — but with `contentWindowInsets = WindowInsets.safeDrawing` the `innerPadding` already includes the IME, and adding `imePadding()` pads twice.
 
 ## Also superseded — but covered in detail in their own references
 

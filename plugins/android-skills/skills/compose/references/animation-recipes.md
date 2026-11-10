@@ -28,7 +28,7 @@ fun ContentWithLoading(isLoading: Boolean, content: @Composable () -> Unit) {
 }
 ```
 
-Crossfading the skeleton ↔ real content (keyed on `isLoading`) avoids a jarring swap when data arrives. For a list, prefer a stable shimmer item over per-item `composed`; the production crash-safe shimmer (zero-size `SubcomposeLayout` guard) lives in `compose/references/production-crash-playbook.md` §7.
+Crossfading the skeleton ↔ real content (keyed on `isLoading`) avoids a jarring swap when data arrives. For a list, prefer a stable shimmer item over per-item `composed`. If the shimmer draws in a `Canvas`, guard the zero-size case (`compose/references/performance.md`, "Zero-size DrawScope guard").
 
 ## Sequential / parallel / staggered choreography (just coroutines)
 

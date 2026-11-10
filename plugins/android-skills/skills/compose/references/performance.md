@@ -287,6 +287,8 @@ val columns = remember(configuration) {
 }
 ```
 
+`LocalConfiguration` is Android-only. In Compose Multiplatform `commonMain`, derive the size from `LocalWindowInfo.current.containerSize` (pixels) with `LocalDensity`, and key on that.
+
 ---
 
 ## LazyList Performance

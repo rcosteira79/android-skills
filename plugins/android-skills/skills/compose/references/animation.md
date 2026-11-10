@@ -14,7 +14,7 @@ AnimatedContent(
 ) { state -> when (state) { /* Loading / Success / Error */ } }
 ```
 
-Now the cross-fade fires only on Loading↔Success↔Error, never on a Success-payload update. (In `transitionSpec`, combine exit+enter with **`togetherWith`** — the old `with` infix is deprecated — and `using SizeTransform(clip = false)` to animate the container size.)
+Now the cross-fade fires only on Loading↔Success↔Error, never on a Success-payload update. **Render from the lambda's parameter (`state`), never from the outer `uiState`:** during the transition both the outgoing and incoming content are composed, and a body that reads the outer value shows the *new* state in both. (In `transitionSpec`, combine exit+enter with **`togetherWith`** — the old `with` infix is deprecated — and `using SizeTransform(clip = false)` to animate the container size.)
 
 ## Defer animated reads to the latest phase
 

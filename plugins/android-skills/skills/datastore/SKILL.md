@@ -57,4 +57,6 @@ fun createPreferencesDataStore(producePath: () -> String): DataStore<Preferences
 // jvm:     File(System.getProperty("user.home"), ".myapp") — NOT java.io.tmpdir (the OS may wipe it on reboot)
 ```
 
+**One `DataStore` instance per file, held at app scope** (a DI singleton) — a second instance on the same file throws `IllegalStateException`. Never build one inside `remember { }` or per screen.
+
 (In a composable, never `runBlocking` on DataStore — it parks the main thread on disk I/O, risking an ANR, and re-runs every recomposition. Expose a `StateFlow` and collect with `collectAsStateWithLifecycle`.)

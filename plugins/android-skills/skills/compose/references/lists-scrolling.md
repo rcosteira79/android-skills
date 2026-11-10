@@ -21,7 +21,7 @@ val byId = remember(items) { items.associateBy { it.id } }
 items(items, key = { it.id }) { item -> ItemRow(item, byId[activeId] === item) }   // O(1)
 ```
 
-(LazyList *crash* patterns — `indexOf` → `IndexOutOfBoundsException`, duplicate/colliding keys + the dedup-index fix, `derivedStateOf` driving a collection count — live in `compose/references/production-crash-playbook.md`, §2/§4/§5/§8.)
+`indexOf` also returns `-1` when the list holds re-created instances that aren't `equals` to the item — used as an index (`items[index + 1]`) that is an `IndexOutOfBoundsException`. For the same reason, don't expose only a filtered *count* and index a separately-filtered list inside `items(count)`: compute the filtered list once (`remember(all, filter) { … }`) and iterate that.
 
 ## Keys: never build a new object in the key lambda
 
@@ -31,6 +31,22 @@ A stable-id key is the easy part; the trap is computing a *new object* in the ke
 items(users, key = { User(it.id, it.name) }) { … }   // WRONG — new object every recomposition
 items(users, key = { it.id }) { … }                  // RIGHT — primitive, stable id
 ```
+
+## Duplicate keys crash
+
+Two items with the same key throw `IllegalArgumentException: Key … was already used`. Two ways it reaches production:
+
+- **The backend repeats an id** (a WebSocket reconnect replays messages). Never trust backend ids to be unique: drop true duplicates with `distinctBy { it.id }`, or, when both must show, suffix the key with the occurrence index.
+- **One entity appears in two sections of the same list** (a pinned message that is also in the live feed). Prefix the key per section:
+
+```kotlin
+items(pinned, key = { "pinned_${it.id}" }) { PinnedRow(it) }
+items(live, key = { "live_${it.id}" }) { LiveRow(it) }
+```
+
+## Per-item `rememberSaveable` → `TransactionTooLargeException`
+
+`rememberSaveable` inside an item block saves one value per item into the single `Bundle` that goes through binder on `onSaveInstanceState` (~1MB limit). On a long list that crashes. Keep `rememberSaveable` at screen level; inside items use plain `remember`, or hoist the per-item state (a set of expanded ids) into the screen's state.
 
 ## `animateItem()` needs stable keys
 
@@ -57,6 +73,10 @@ fun ConversationListScreen(items: List<Conversation>) {
     LazyColumn { items(items, key = { it.id }) { ConversationRow(it) } }
 }
 ```
+
+## Impression logging — not from an effect in the item
+
+Lazy layouts compose items ahead of the viewport (prefetch), so a `LaunchedEffect(Unit)` or `DisposableEffect` inside an item fires for rows the user never saw. Log from `Modifier.onVisibilityChanged { visible -> … }` on the item, with a dwell threshold.
 
 ## Infinite scroll — derive the trigger, and test across OEMs
 
