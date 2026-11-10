@@ -19,7 +19,7 @@ This reference covers the Flow traps and semantic edge cases — Channel vs Shar
 
 **`Channel.receiveAsFlow()` is fan-out, NOT broadcast.** With multiple collectors, each event reaches **one** collector (the framework picks which), not all of them. If every collector must see every event, you need `SharedFlow`. This is the trap that's easy to fall into when reaching for `Channel` to multicast.
 
-For single-consumer one-shot events, `Channel(BUFFERED).receiveAsFlow()` is the default because `send` suspends until consumed (the event is queued, never dropped), whereas `SharedFlow(replay = 0)` drops the emission if no collector is active at the instant of emission. Expose the `Flow`, never the `Channel`, and collect with `collect` inside `LaunchedEffect` — **not** `collectAsStateWithLifecycle`, which retains the last event as state and re-fires it on every recomposition / config change.
+For single-consumer one-shot events, `Channel(BUFFERED).receiveAsFlow()` is the default because the event is buffered until the collector takes it (`send` suspends when the buffer is full; `trySend` fails instead, so check its result), whereas `SharedFlow(replay = 0)` drops the emission if no collector is active at the instant of emission. Expose the `Flow`, never the `Channel`, and collect with `collect` inside `LaunchedEffect` — **not** `collectAsStateWithLifecycle`, which retains the last event as state and re-fires it on every recomposition / config change.
 
 ```kotlin
 private val _events = Channel<UiEvent>(Channel.BUFFERED)
@@ -47,6 +47,12 @@ val uiState: StateFlow<UiState>
 ```
 
 Applies wherever a `StateFlow` / `SharedFlow` is exposed from a mutable backing (`MutableStateFlow` *is* a `StateFlow`, so the default getter type-checks). It does **not** fit a `Channel` exposed as a `Flow` — a `Channel` isn't a `Flow`, so keep the explicit `_events` / `receiveAsFlow()` pair above. On Kotlin < 2.4 (check the version catalog), keep the classic `private val _x` + `val x = _x.asStateFlow()`.
+
+## `StateFlow` traps
+
+- **The `update { }` lambda can run more than once** — it retries when another writer changes the value concurrently. Keep it pure: do the I/O, read the clock, and generate the id *before* calling `update`, never inside it.
+- **Expose `stateIn` as a property, not a function.** `fun items() = repo.items().stateIn(…)` starts a new sharing coroutine on every call.
+- **`.value` on a `WhileSubscribed` flow is stale while nobody collects** — it holds the initial or last value, not the current upstream one. Don't read it from a ViewModel method to make a decision; collect, or read the source.
 
 ## Callback bridging
 

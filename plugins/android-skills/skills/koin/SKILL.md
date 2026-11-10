@@ -5,7 +5,7 @@ description: Use when setting up or working with Koin in Android or KMP projects
 
 # Koin Dependency Injection (Android and KMP)
 
-Pragmatic Kotlin DI. **Koin vs Hilt:** Koin runs in `commonMain` (Hilt doesn't) and verifies the graph via `verify()` instead of codegen; Hilt is Android-only with codegen + deep Jetpack integration (`@HiltViewModel` / `hiltViewModel()`). This reference covers the traps and boundaries, not the Classic DSL basics (`single` / `factory` / `scoped` / `viewModel { }` with `get()` resolution and runtime params, `koinViewModel` / `koinInject`, `startKoin { androidLogger(); androidContext(this@MyApp); modules(...) }`). **Related:** `android-skills:kmp-ktor`, `android-skills:android-data-layer`. Deps via `koin-bom`: `koin-core`, `koin-android`, `koin-androidx-compose`, `koin-compose-viewmodel` (KMP), `koin-compose-viewmodel-navigation` (Nav 3), `koin-test`, + optional `koin-annotations` / `koin-ksp-compiler`.
+Pragmatic Kotlin DI. **Koin vs Hilt:** Koin runs in `commonMain` (Hilt doesn't) and verifies the graph via `verify()` instead of codegen; Hilt is Android-only with codegen + deep Jetpack integration (`@HiltViewModel` / `hiltViewModel()`). This reference covers the traps and boundaries, not the Classic DSL basics (`single` / `factory` / `scoped` / `viewModel { }` with `get()` resolution and runtime params, `koinViewModel` / `koinInject`, `startKoin { androidLogger(); androidContext(this@MyApp); modules(...) }`). **Related:** `android-skills:kmp-ktor`, `android-skills:android-data-layer`. Deps via `koin-bom`: `koin-core`, `koin-android`, `koin-androidx-compose`, `koin-compose-viewmodel` (KMP), `koin-compose-navigation3` (Nav 3), `koin-test`, + optional `koin-annotations` / `koin-ksp-compiler`.
 
 ## KSP Annotations — the generated-module accessor
 
@@ -73,16 +73,16 @@ val navigationModule = module {
 NavDisplay(backStack = backStack, onBack = { backStack.removeLastOrNull() }, entryProvider = koinEntryProvider())
 ```
 
-## Testing — `verify()` / `checkModules()`
+## Testing — `verify()`
 
-Walks each declaration's constructor and confirms every dependency is declared — missing bindings become **test failures instead of a runtime `NoDefinitionFoundException`** (recovering one of Hilt's advantages). Run it in CI. For constructor params resolved at runtime (e.g. `SavedStateHandle`), pass `extraTypes` or `verify()` false-fails. Override real bindings with fakes (e.g. Ktor `MockEngine` — see `android-skills:kmp-ktor`). `KoinTestRule` (JUnit 4) / `KoinTestExtension` (JUnit 5) installs a context per test.
+Walks each declaration's constructor and confirms every dependency is declared — missing bindings become **test failures instead of a runtime `NoDefinitionFoundException`** (recovering one of Hilt's advantages). Run it in CI. (`checkModules()` is deprecated since Koin 4.0.) For constructor params resolved at runtime (e.g. `SavedStateHandle`), pass `extraTypes` or `verify()` false-fails. Override real bindings with fakes (e.g. Ktor `MockEngine` — see `android-skills:kmp-ktor`). `KoinTestRule` (JUnit 4) / `KoinTestExtension` (JUnit 5) installs a context per test.
 
 ```kotlin
 class ModuleVerificationTest : KoinTest {
     @Test fun `all modules resolve cleanly`() {
-        koinApplication { modules(appModule, networkModule, platformModule) }.checkModules()
+        appModule.verify()
+        networkModule.verify()
+        featureModule.verify(extraTypes = listOf(SavedStateHandle::class))   // runtime-resolved types
     }
-    // Per-module with runtime-resolved types:
-    // featureModule.verify(extraTypes = listOf(SavedStateHandle::class))
 }
 ```

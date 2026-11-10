@@ -3,7 +3,7 @@ name: android-testing
 description: >
   Use when writing, fixing, or refactoring Android/KMP code in Kotlin — a test-first
   (RED-GREEN-REFACTOR) foundation plus the Android/KMP test traps: Compose-test dispatching
-  (StandardTestDispatcher default, the two-schedulers trap), semantics-first selectors,
+  (v1 vs v2 test APIs, the two-schedulers trap), semantics-first selectors,
   choosing the smallest test shape, test-clock vs wall-clock, animation/screenshot
   determinism, and a `commonTest` name that fails the iOS compile while `jvmTest` stays green.
 ---
@@ -36,9 +36,9 @@ Two rules follow. Keep `,` `.` `(` `)` `:` `?` out of every `commonTest` declara
 
 Don't confuse this with the Android rule Kotlin's coding conventions cite: D8 rejects *spaces* below `minSdk` 30, which bites instrumented tests only — and never commas, which the DEX `SimpleName` grammar has never allowed at any API level.
 
-## Compose tests now default to `StandardTestDispatcher`
+## Compose test v2 APIs run on `StandardTestDispatcher`
 
-`createComposeRule()` / `runComposeUiTest {}` default to `StandardTestDispatcher` (matching `kotlinx.coroutines.test.runTest`) — **there is no separate "v2" package.** It's gated by `androidx.compose.ui.test.ComposeUiTestFlags.isStandardTestDispatcherSupportEnabled` (defaults to `true`), so the regular `androidx.compose.ui.test.junit4.createComposeRule` already uses it. To pin a scheduler, pass it through: `createComposeRule(effectContext = StandardTestDispatcher())`. Under this default, a `LaunchedEffect` that previously ran eagerly (the old `UnconfinedTestDispatcher` behaviour) may need an explicit `mainClock.advanceTimeBy(0)` / `runCurrent()` to drain queued work; set the flag `false` only to temporarily restore the legacy behaviour.
+The v2 entry points — `androidx.compose.ui.test.junit4.v2.createComposeRule` / `createAndroidComposeRule` and `androidx.compose.ui.test.v2.runComposeUiTest` — use `StandardTestDispatcher` (matching `kotlinx.coroutines.test.runTest`). The same-named v1 functions in `androidx.compose.ui.test.junit4` / `androidx.compose.ui.test` are deprecated and stay on `UnconfinedTestDispatcher`, so the import decides the behaviour. Use v2 for new tests. When moving a test to v2, a `LaunchedEffect` that ran eagerly under v1 may need `mainClock.advanceTimeBy(0)` / `runCurrent()` to drain queued work. Check which packages the project's Compose version ships before relying on either.
 
 **Two-schedulers trap** (the one coroutine-test gotcha worth stating): a `MainDispatcherRule`'s `TestDispatcher` and the dispatcher `runTest { }` creates have **separate** `TestCoroutineScheduler`s. Pass `mainRule.dispatcher` into `runTest(mainRule.dispatcher)` so `Dispatchers.Main` and the test body share one — otherwise `advanceUntilIdle()` flushes only one and assertions race the ViewModel.
 
@@ -71,7 +71,9 @@ A composable's contract is "render state, emit callbacks" — test exactly that;
 | State holder updates UI correctly | State-holder unit test + ONE wiring smoke test |
 | Lifecycle, navigation, or DI integration itself | Integration test (`createAndroidComposeRule`, Hilt rule, real graph) |
 
-**Test clock vs wall clock:** for any Compose-state-observable condition use `mainClock.advanceTimeUntil(ms) { state.value == Done }` (deterministic, fast); use `rule.waitUntil(ms) { … }` only for non-Compose conditions (`Job.isCompleted`, an external counter). Mixing the two in one test is a common flake source.
+**Test clock vs wall clock:** for any Compose-state-observable condition use `mainClock.advanceTimeUntil(ms) { state.value == Done }` (deterministic, fast); use `rule.waitUntil(ms) { … }` only for non-Compose conditions (`Job.isCompleted`, an external counter). Mixing the two in one test is a common flake source. Inside `waitUntil { }` return a Boolean (`onNode(…).isDisplayed()`), or use `waitUntilExactlyOneExists` / `waitUntilDoesNotExist` — a throwing `assertIsDisplayed()` fails the test on the first poll instead of waiting.
+
+**`mainClock.advanceTimeBy(ms)` rounds up to a whole frame (16ms)** — `advanceTimeBy(50)` advances 64ms. Pass `ignoreFrameDuration = true` when an assertion depends on the exact elapsed time.
 
 **Animation tests need `mainClock.autoAdvance = false` set *before* `setContent`** — otherwise the framework's `InfiniteAnimationPolicy` throws `CancellationException` on indeterminate animations, and finite animations finish in one auto-advanced burst with no observable intermediate state. After pausing, drive frames with `advanceTimeByFrame()` (kick-off) then `advanceTimeBy(durationMillis)`.
 

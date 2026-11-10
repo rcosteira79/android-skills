@@ -74,4 +74,4 @@ See `android-skills:kotlin-flows` for the cold-vs-hot and terminal-operator rule
 
 ### `onSizeChanged` writing state read in composition
 
-`onSizeChanged` fires after layout; writing a `MutableState` from it that's then read in composition creates a back-writing feedback loop (layout → invalidate → layout → …). See `compose/references/state-management.md` → "Cross-Phase Back-Writing" for the `Modifier.decorateMeasureConstraints` fix.
+`onSizeChanged` fires after layout; writing a `MutableState` from it that's then read in composition creates a back-writing feedback loop (layout → invalidate → layout → …). See `compose/references/state-management.md` → "Cross-Phase Back-Writing" for the layout-phase fix.

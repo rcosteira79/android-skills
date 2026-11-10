@@ -46,7 +46,7 @@ A UI state holder may launch from a non-suspending event callback only under **a
 
 ## Cancellation
 
-Cooperative: `ensureActive()` at the top of long loops (throws if cancelled), `isActive` to check without throwing, `yield()` to also yield the thread. `delay` / `withContext` are already cancellable. Cleanup that must run after cancellation goes in `finally { withContext(NonCancellable) { … } }` — `NonCancellable` only there, never as a general escape hatch. `TimeoutCancellationException` (from `withTimeout`) **is** a `CancellationException` — never catch it without rethrowing. (Don't reach for `withTimeout` for network timeouts — OkHttp/Retrofit/Ktor own those.)
+Cooperative: `ensureActive()` at the top of long loops (throws if cancelled), `isActive` to check without throwing, `yield()` to also yield the thread. `delay` / `withContext` are already cancellable. A blocking call is not: `withContext(io) { blockingRead() }` changes the thread, but cancellation still waits for the call to return — on the JVM wrap it in `runInterruptible(io) { … }` so cancellation interrupts the thread. Cleanup that must run after cancellation goes in `finally { withContext(NonCancellable) { … } }` — `NonCancellable` only there, never as a general escape hatch. `TimeoutCancellationException` (from `withTimeout`) **is** a `CancellationException` — never catch it without rethrowing. (Don't reach for `withTimeout` for network timeouts — OkHttp/Retrofit/Ktor own those.)
 
 ## Exception handling — don't break cancellation
 
@@ -77,4 +77,4 @@ Don't use `MainScope()` — it's unstructured (`Dispatchers.Main + SupervisorJob
 
 ## Testing
 
-Coroutine and dispatcher testing lives in `android-skills:android-testing` — notably the two-schedulers trap (`runTest` + `MainDispatcherRule` must share one scheduler) and the `StandardTestDispatcher` default in Compose tests.
+Coroutine and dispatcher testing lives in `android-skills:android-testing` — notably the two-schedulers trap (`runTest` + `MainDispatcherRule` must share one scheduler) and the dispatcher difference between the v1 and v2 Compose test APIs.

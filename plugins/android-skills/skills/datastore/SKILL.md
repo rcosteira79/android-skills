@@ -20,7 +20,7 @@ Rule of thumb: if a `WHERE` clause would be useful, use Room.
 
 ## The two traps
 
-**`.catch` must match `IOException` specifically — never a broad `catch`.** A bare `catch { emit(emptyPreferences()) }` swallows `CancellationException` (breaking structured concurrency) and hides serializer/corruption errors behind a silent empty state.
+**`.catch` must match `IOException` specifically — never a broad `catch`.** A bare `catch { emit(emptyPreferences()) }` hides serializer/corruption errors behind a silent empty state.
 
 ```kotlin
 val settings: Flow<UserSettings> = dataStore.data
@@ -56,5 +56,7 @@ fun createPreferencesDataStore(producePath: () -> String): DataStore<Preferences
 // ios:     NSDocumentDirectory via NSFileManager
 // jvm:     File(System.getProperty("user.home"), ".myapp") — NOT java.io.tmpdir (the OS may wipe it on reboot)
 ```
+
+**One `DataStore` instance per file, held at app scope** (a DI singleton) — a second instance on the same file throws `IllegalStateException`. Never build one inside `remember { }` or per screen.
 
 (In a composable, never `runBlocking` on DataStore — it parks the main thread on disk I/O, risking an ANR, and re-runs every recomposition. Expose a `StateFlow` and collect with `collectAsStateWithLifecycle`.)

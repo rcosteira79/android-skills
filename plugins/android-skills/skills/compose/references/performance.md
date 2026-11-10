@@ -4,7 +4,7 @@
 
 Recomposition perf issues split into two independent axes — **parameter stability** (does Compose skip this composable?) and **state-read phase** (when does a state read trigger recomposition?). Decide which axis fits the evidence before applying fixes:
 
-- **Stability axis** — composable runs even though inputs didn't change. Diagnose with compiler reports (`*_composables.txt`, `*_classes.txt`) and the strong-skipping rules below. Fixes: stable types, `@Immutable`/`@Stable`, `stabilityConfigurationFiles`, immutable collections.
+- **Stability axis** — composable runs even though inputs didn't change. Diagnose with compiler reports (`*_composables.txt`, `*_classes.txt`) and the strong-skipping rules below. Fixes: stop allocating a new instance per recomposition (remember or hoist it), `stabilityConfigurationFiles`, `@Immutable`/`@Stable` where the contract holds.
 - **Phase axis** — composable runs because a state read happened in composition that could have happened in layout or draw. Diagnose with Layout Inspector recomposition counts. Fixes: provider lambdas, `Modifier.offset { }`, `Modifier.graphicsLayer { }`, `derivedStateOf`.
 
 The three frame phases the phase axis refers to: **composition** (runs composables, evaluates state reads — a read here invalidates the whole scope), **layout** (`measure`/`layout`; mutable reads here don't trigger recomposition — prefer `Modifier.offset { }` over `Modifier.offset()`), **draw** (`Canvas`/`DrawScope`).
@@ -63,11 +63,10 @@ With Kotlin 2.0.20+ and strong skipping on by default, the legacy "missing skipp
 
 When the report shows a composable as skippable but Layout Inspector shows it recomposing constantly, look at the **call site** — a caller probably allocates a new unstable instance every frame (`listOf(...)`, `Modifier.X.Y()`, an ad-hoc data class). Fixing instability turns `===` comparisons back into `equals()`:
 
-- **Unstable collection types** (`List`, `Set`, `Map`) — replace with `kotlinx.collections.immutable` equivalents (`ImmutableList`, …) so equality is meaningful.
+- **Collection parameters** (`List`, `Set`, `Map`) — keep them. Under strong skipping an unstable `List` is compared by instance, so the same list skips. Don't swap in `ImmutableList` and don't annotate a model that holds a collection: an O(n) `equals` on every recomposition costs more than `===`. If the row recomposes, the caller is building a new list each time — `remember` or hoist it.
 - **All properties stable but the class isn't annotated** — same-module classes with all-stable properties are inferred stable automatically, so usually no action is needed; annotate `@Stable`/`@Immutable` only when inference can't see the type — and only if the contract genuinely holds, since a false promise causes skipped recompositions and stale UI. Don't annotate speculatively.
 - **Inner types are themselves unstable** — fix the inner types first; the outer type then becomes stable. Can cascade several levels.
 - **Cross-module boundary** — the compiler can't infer across modules; use `stabilityConfigurationFiles` (below).
-- **Pragmatic opt-out** — `@Suppress("ComposeUnstableCollections")` per-function when the instability is harmless and refactoring isn't justified.
 
 ### `@Immutable` vs `@Stable` — the boundary
 
@@ -75,14 +74,15 @@ When the report shows a composable as skippable but Layout Inspector shows it re
 @Immutable data class Person(val name: String, val age: Int)
 
 @Stable
-class UserViewModel : ViewModel {
-    private val _state = MutableState(UserState())
-    val state: State<UserState> = _state
+class CounterState {
+    var count by mutableIntStateOf(0)
+        private set
+    fun increment() { count++ }
 }
 ```
 
 - **`@Immutable`** — every property is effectively immutable and `equals()` describes all observable state. The compiler skips whenever previous and current values are `equals`-equal. The stricter promise; lets it skip more aggressively.
-- **`@Stable`** — for types whose mutable state is observable to Compose (typically via `MutableState`). You promise *any* observable change is flagged through a snapshot. Like every stable type it's compared with `equals()` (see *Strong Skipping Mode*); a holder that doesn't override `equals()` falls back to identity, so passing the same instance skips while observed snapshot changes still recompose. Right for ViewModels and snapshot-backed holders.
+- **`@Stable`** — for types whose mutable state is observable to Compose (typically via `MutableState`). You promise *any* observable change is flagged through a snapshot. Like every stable type it's compared with `equals()` (see *Strong Skipping Mode*); a holder that doesn't override `equals()` falls back to identity, so passing the same instance skips while observed snapshot changes still recompose. Right for snapshot-backed state holders.
 
 **Don't annotate to silence a report.** A false stability promise produces *skipped recompositions and stale UI* — silent and hard to reproduce. If the contract doesn't hold, fix the type or live with the recomposition. (Never `@Stable` on a data class with mutable non-snapshot fields.)
 
@@ -120,7 +120,7 @@ The "stable vs unstable" model is too coarse; the compiler emits five classifica
 | **Runtime (stable)** | Stability depends on an inner type the compiler defers — a per-instance `$stable: Int` field is generated and checked at runtime | `equals()` if the runtime check passes; otherwise falls back to `===` |
 | **Unknown** | Interface-typed parameter; concrete impl not visible | `===` (instance equality) — same instance skips |
 | **Parameter** | A generic type parameter — depends on the call-site type argument | Resolved per call site |
-| **Unstable** | Proven unstable (mutable field outside snapshots) | Strong skipping disabled; runs every time |
+| **Unstable** | Proven unstable (mutable field outside snapshots) | `===` (instance equality) under strong skipping — the same instance skips, a new one recomposes |
 
 The common mistake is treating **runtime stable** as a defect to annotate away. It isn't — the `$stable: Int` field is a valid compile-time-deferred classification. Adding `@Stable` on top only matters when the runtime check produces too many false negatives, and the right diagnostic for that is the inner type, not the wrapper.
 
@@ -164,7 +164,7 @@ Automatic lambda memoization happens inside `@Composable` functions only. Lambda
 
 | Scope | Why it's not memoized |
 |---|---|
-| `LazyListScope.items { … }` and its item lambdas | `items {}` is a regular Kotlin extension, not a composable |
+| The `LazyListScope` builder block (`LazyColumn { … }`) — e.g. `key = { … }`, or a lambda built there and passed down | The builder is a regular lambda, not a composable. The item *content* block is `@Composable`, so lambdas inside it are memoized |
 | `Modifier.pointerInput(key) { … }` | `PointerInputScope.() -> Unit` is a suspend lambda |
 | `object : Foo { override fun bar() = { … } }` | Anonymous object literal — Kotlin object scope |
 | `Modifier.drawBehind { }`, `drawWithCache { }`, `drawWithContent { }` | `DrawScope.() -> Unit` is a regular lambda |
@@ -253,15 +253,17 @@ The read happens inside `graphicsLayer { ... }` (draw phase), so the state read 
 
 ## derivedStateOf — Reducing Recomposition Frequency
 
-When deriving an expensive computation from state, wrap in `derivedStateOf` to dedup downstream recompositions — two different inputs yielding the same result trigger only one downstream recomposition:
+Use `derivedStateOf` when a `State` changes more often than the value derived from it — two different inputs yielding the same result trigger only one downstream recomposition:
 
 ```kotlin
-// BAD — filters (and recomposes) on every items/query change
-val filtered = items.filter { query in it.title }
+// BAD — recomposes on every scroll pixel
+val showButton = listState.firstVisibleItemIndex > 0
 
-// GOOD — recomposes only when the filtered result actually changes
-val filtered = remember(items, query) { derivedStateOf { items.filter { query in it.title } } }
-LazyColumn { items(filtered.value) { /* ... */ } }
+// GOOD — recomposes only when the Boolean flips
+val showButton by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+
+// NOT derivedStateOf — plain inputs, no State read: key a remember instead
+val filtered = remember(items, query) { items.filter { query in it.title } }
 ```
 
 ---
@@ -285,6 +287,8 @@ val columns = remember(configuration) {
 }
 ```
 
+`LocalConfiguration` is Android-only. In Compose Multiplatform `commonMain`, derive the size from `LocalWindowInfo.current.containerSize` (pixels) with `LocalDensity`, and key on that.
+
 ---
 
 ## LazyList Performance
@@ -297,28 +301,13 @@ LazyColumn {
 }
 ```
 
-### Stabilize Per-Item Lambdas with `remember(item.id)`
-
-An item lambda that captures a per-item value (the item, an index, a per-item callback) is allocated fresh on every scroll, defeating strong-skipping for the row. Key it by stable id:
-
-```kotlin
-// WRONG — fresh lambda every scroll; ItemRow re-runs even though `item` didn't change
-items(items, key = { it.id }) { item -> ItemRow(item, onClick = { onItemClick(item) }) }
-
-// RIGHT — lambda keyed by stable id, remembered per item
-items(items, key = { it.id }) { item ->
-    val onClick = remember(item.id) { { onItemClick(item) } }
-    ItemRow(item, onClick = onClick)
-}
-```
-
 ### Prefetch and Cache Window (Foundation 1.9+ / 1.10+)
 
 Lazy layouts compose just outside the viewport during scroll to keep frame budget steady. Foundation 1.9+ exposes `LazyLayoutCacheWindow(ahead, behind)`; 1.10+ makes prefetch pausable under frame-deadline pressure.
 
 ```kotlin
 @OptIn(ExperimentalFoundationApi::class)
-val state = rememberLazyListState(cacheWindow = LazyLayoutCacheWindow(ahead = 2, behind = 1))
+val state = rememberLazyListState(cacheWindow = LazyLayoutCacheWindow(ahead = 300.dp, behind = 150.dp))   // Dp, not item counts
 ```
 
 Tune `ahead` higher for tall items with slow images, lower (or 0) when items are cheap and prefetch bloats memory — touch this only when a profiler shows item composition spiking under scroll. For nested lazy layouts (a `LazyRow` per `LazyColumn` item), `NestedPrefetchScope` lets the outer list trigger inner prefetch ahead of the outer item entering composition.
@@ -377,7 +366,7 @@ For latency-sensitive content (a heavy section on a tab switch), `state.precompo
 
 ## Baseline Profiles
 
-Baseline profiles tell R8 to pre-compile hot paths, cutting startup time and jank. Record with Jetpack Macrobenchmark (`MacrobenchmarkRule` + `measureRepeated`); profiles land in `baseline-prof.txt`.
+Baseline profiles tell ART to pre-compile hot paths at install time, cutting startup time and jank. Record with Jetpack Macrobenchmark (`MacrobenchmarkRule` + `measureRepeated`); profiles land in `baseline-prof.txt`.
 
 ### `BaselineProfileMode.Require` vs `UseIfAvailable`
 
@@ -414,7 +403,7 @@ The **Composition state** column classifies each parameter — map status to fix
 
 Most "why is this recomposing?" investigations resolve at **Uncertain** — an unstable type forces instance-equality, callers create new instances every parent recomposition, the composable runs every time. Fix the type; don't memoize the caller.
 
-For headless/CLI workflows, `android layout --diff --pretty` between two app states gives a JSON tree of changed nodes; combine with `SideEffect { Log.d(...) }` counters to correlate diffs with hot paths. **Macrobenchmark** `FrameTimingMetric()` reports frame times — target <16.67 ms for 60 fps.
+For headless/CLI workflows, dump `android layout --pretty -o <file>` in each app state and diff the two files; combine with `SideEffect { Log.d(...) }` counters to correlate changes with hot paths. **Macrobenchmark** `FrameTimingMetric()` reports frame times — target <16.67 ms for 60 fps.
 
 ---
 
@@ -426,8 +415,8 @@ The same surface symptom ("too many recompositions") routes to different fixes b
 |---|---|---|
 | Composable skips poorly despite strong skipping | New unstable instance each recomposition | Remember, hoist, or make the type stable |
 | Draw block recomposes every frame | Value read before draw block | Move `State.value` read inside the draw block; use a provider lambda across boundaries |
-| Regression after adding a type to a data class | Cross-module type is unstable | Add to `stabilityConfigurationFiles` or annotate `@Immutable` |
-| LazyColumn item recomposes on every scroll | Lambda captured from parent | Cache with `remember(item.id)` or hoist the source out of the item |
+| Regression after adding a type to a data class | Cross-module type is unstable | Add to `stabilityConfigurationFiles`, or annotate `@Immutable` if the type holds no collection |
+| LazyColumn item recomposes on every scroll | A parameter gets a new instance each time (a fresh list, an ad-hoc object) | `remember` or hoist that instance. Don't `remember` the click lambda — strong skipping already memoizes it |
 | Animation triggers recomposition per frame | Animated state read in composition | Read inside `graphicsLayer { }` or `offset { }` |
 
 **Anti-patterns:** wrapping cheap values in `remember`; adding `derivedStateOf`/`remember` without Layout Inspector data (profile first); `@Stable` on a data class with a `MutableState` field (use `@Immutable` on a fully-immutable type instead).

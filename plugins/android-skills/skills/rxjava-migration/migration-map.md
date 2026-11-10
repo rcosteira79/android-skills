@@ -1,5 +1,7 @@
 # RxJava → Coroutines/Flow Operator Mapping
 
+Operators that keep their name and meaning (`map`, `filter`, `take`, `scan`, `first`, `last`, `distinctUntilChanged`, `debounce`, `merge`, `retry(n)`) are omitted.
+
 ## Creation Operators
 
 | RxJava | Coroutines/Flow |
@@ -19,11 +21,9 @@
 
 | RxJava | Coroutines/Flow |
 |---|---|
-| `map { }` | `map { }` |
 | `flatMap { }` | `flatMapMerge { }` (concurrent) |
 | `concatMap { }` | `flatMapConcat { }` (sequential) |
 | `switchMap { }` | `flatMapLatest { }` (cancel previous — dangerous for writes) |
-| `scan(seed) { }` | `scan(seed) { }` |
 | `buffer(count)` | `chunked(count)` |
 | `cast<T>()` | `filterIsInstance<T>()` |
 | `toList()` | `toList()` (terminal) |
@@ -32,15 +32,9 @@
 
 | RxJava | Coroutines/Flow |
 |---|---|
-| `filter { }` | `filter { }` |
-| `take(n)` | `take(n)` |
 | `skip(n)` | `drop(n)` |
-| `first()` | `first()` |
 | `firstOrDefault(d)` | `firstOrNull() ?: d` |
-| `last()` | `last()` |
 | `elementAt(n)` | `elementAtOrNull(n)` |
-| `distinctUntilChanged()` | `distinctUntilChanged()` |
-| `debounce(ms)` | `debounce(ms)` |
 | `throttleLast(ms)` / `sample(ms)` | `sample(ms)` |
 | `ignoreElements()` | `filter { false }` or suspend fun returning Unit |
 
@@ -48,7 +42,6 @@
 
 | RxJava | Coroutines/Flow |
 |---|---|
-| `merge(a, b)` | `merge(a, b)` |
 | `concat(a, b)` | `flow { emitAll(a); emitAll(b) }` |
 | `zip(a, b) { }` | `a.zip(b) { }` |
 | `combineLatest(a, b) { }` | `combine(a, b) { }` |
@@ -61,7 +54,6 @@
 |---|---|
 | `onErrorReturn(x)` | `catch { emit(x) }` |
 | `onErrorResumeNext(obs)` | `catch { emitAll(fallbackFlow) }` |
-| `retry(n)` | `retry(n)` |
 | `retryWhen { }` | `retryWhen { cause, attempt -> cause is IOException && attempt < 3 }` |
 | `onErrorComplete()` | `catch { }` (swallow, complete) |
 
