@@ -16,9 +16,11 @@ Foldables introduce postures beyond window size classes. Detect them with `Windo
 | Posture | Detection | Layout behavior |
 |---|---|---|
 | Flat (unfolded) | no folding feature | Treat as Medium/Expanded by width |
-| Half-opened, horizontal fold (tabletop) | `HALF_OPENED` + `Orientation.HORIZONTAL` | Content top half, controls bottom half |
+| Half-opened, horizontal fold (tabletop) | `HALF_OPENED` + `Orientation.HORIZONTAL` | Content above the hinge, controls below it — read the hinge bounds, never assume a 50/50 split |
 | Half-opened, vertical fold (book) | `HALF_OPENED` + `Orientation.VERTICAL` | List left, detail right |
 | Folded (cover screen) | — | Treat as Compact |
+
+On current Compose, the adaptive APIs replace the manual tracker: `mediaQuery { windowPosture == UiMediaScope.Posture.Tabletop }` — see Google's `adaptive` skill (`android skills add adaptive`). The `WindowInfoTracker` form below works on older versions.
 
 ```kotlin
 @Composable
@@ -57,7 +59,7 @@ For multiplatform or a stable public API, `com.materialkolor:material-color-util
 
 ### Motion: duration tokens + reduced motion
 
-Pair M3's duration ladder with easing (`short*` → `FastOutSlowIn`; `medium*` → `Emphasized(De/Ac)celerate`; `long*`/`extraLong*` → `Emphasized`) rather than arbitrary millis. Reach for `MotionScheme` (Compose M3 1.4+) where available; otherwise hold durations at one source of truth in the theme.
+Use M3's duration ladder rather than arbitrary millis, and pick easing by what the element does — decelerate to enter, accelerate to exit, emphasized to move on screen (values in `compose/references/animation.md`). Reach for `MotionScheme` (Compose M3 1.4+) where available; otherwise hold durations at one source of truth in the theme.
 
 | Token group | Range | Typical use |
 |---|---|---|

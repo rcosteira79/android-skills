@@ -79,7 +79,7 @@ class FooViewModel(/* … */) : ViewModel(), FooActions {
     private val _effects = Channel<FooEffect>(Channel.BUFFERED)   // not SharedFlow — buffers while backgrounded
     val effects = _effects.receiveAsFlow()
 
-    override fun onItemClick(id: String) { /* _uiState.update { … } */ _effects.trySend(FooEffect.NavigateTo(id)) }
+    override fun onItemClick(id: String) { /* _uiState.update { … } */ viewModelScope.launch { _effects.send(FooEffect.NavigateTo(id)) } }
     override fun onRefresh() { /* … */ }
 }
 

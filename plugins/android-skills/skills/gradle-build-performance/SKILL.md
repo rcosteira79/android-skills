@@ -18,7 +18,7 @@ This reference covers the workflow discipline plus the patterns that move the ne
 
 ## kapt → KSP (mandatory on AGP 9)
 
-KSP is ~2× faster than kapt, and **AGP 9 makes the migration mandatory** — it has built-in Kotlin support and `org.jetbrains.kotlin.kapt` is incompatible with it. Migrate to KSP (requires KSP 2.3.1+ on AGP 9; Hilt / Room / Moshi all support it), or fall back to `com.android.legacy-kapt` (same version as AGP) for annotation processors with no KSP equivalent. See JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) skill for the broader AGP 9 mechanics.
+KSP is ~2× faster than kapt, and **AGP 9 makes the migration mandatory** — it has built-in Kotlin support and `org.jetbrains.kotlin.kapt` is incompatible with it. Migrate to KSP (AGP 9 needs KSP 2.3.6+ and Hilt 2.59.2+; Room and Moshi support KSP too), or fall back to `com.android.legacy-kapt` (same version as AGP) for annotation processors with no KSP equivalent. The step-by-step migration is in Google's [`agp-9-upgrade`](https://github.com/android/skills/tree/main/build-system/agp/agp-9-upgrade) skill; see JetBrains' [`kotlin-tooling-agp9-migration`](https://github.com/Kotlin/kotlin-agent-skills/tree/main/skills/kotlin-tooling-agp9-migration) skill for the broader AGP 9 mechanics.
 
 ## Dependency resolution
 

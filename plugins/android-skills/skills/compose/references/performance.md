@@ -120,7 +120,9 @@ The "stable vs unstable" model is too coarse; the compiler emits five classifica
 | **Runtime (stable)** | Stability depends on an inner type the compiler defers — a per-instance `$stable: Int` field is generated and checked at runtime | `equals()` if the runtime check passes; otherwise falls back to `===` |
 | **Unknown** | Interface-typed parameter; concrete impl not visible | `===` (instance equality) — same instance skips |
 | **Parameter** | A generic type parameter — depends on the call-site type argument | Resolved per call site |
-| **Unstable** | Proven unstable (mutable field outside snapshots) | `===` (instance equality) under strong skipping — the same instance skips, a new one recomposes |
+| **Combined** | Several of the above merged — a class is as stable as its least stable part | Follows the weakest element |
+
+An *unstable* type is `Certain(stable = false)`, not a sixth kind: under strong skipping it is compared by instance (`===`), so the same instance skips and a new one recomposes.
 
 The common mistake is treating **runtime stable** as a defect to annotate away. It isn't — the `$stable: Int` field is a valid compile-time-deferred classification. Adding `@Stable` on top only matters when the runtime check produces too many false negatives, and the right diagnostic for that is the inner type, not the wrapper.
 
@@ -293,7 +295,7 @@ val columns = remember(configuration) {
 
 ## LazyList Performance
 
-Always provide `key` (enables item reuse and animations) and `contentType` for heterogeneous lists (without it, all items compete for one reuse pool):
+Always provide `key` (enables item reuse and animations) and `contentType` (without it, items of different shapes compete for one reuse pool):
 
 ```kotlin
 LazyColumn {
@@ -438,7 +440,7 @@ if (isExpanded) ExpandedLayout { movableContent() } else CollapsedLayout { movab
 
 **R8** — keep `minifyEnabled`/`shrinkResources` on; Compose ships default rules. Strip preview tooling in release: `-assumenosideeffects class androidx.compose.ui.tooling.preview.** { *; }`.
 
-**Zero-size DrawScope guard** — a composable's size can be zero during initial composition; guard divide-by-size math, and never `fillMaxSize()` a `Canvas` without a height constraint:
+**Zero-size DrawScope guard** — a composable's size can be zero during initial composition; guard divide-by-size math, and give a `Canvas` a bounded height — `fillMaxSize()` inside a parent with unbounded height measures to zero:
 
 ```kotlin
 Canvas(Modifier.fillMaxWidth().height(200.dp)) {

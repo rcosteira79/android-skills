@@ -8,7 +8,7 @@ This reference covers how to author a slot API correctly — the six rules below
 
 ### 1. Carry the parent's receiver scope on the slot — don't silently drop it
 
-When a slot renders inside a standard layout (`Row`, `Column`, `Box`, `LazyListScope`) whose scope exposes useful caller-facing APIs, the slot type **must** carry that receiver: a slot rendered inside a `Row` is `@Composable RowScope.() -> Unit`, inside a `Box` is `@Composable BoxScope.() -> Unit`. Writing it as a bare `@Composable () -> Unit` instead is a **silent API regression** — it strips `RowScope.weight()`, `ColumnScope.weight()`, `BoxScope.matchParentSize()`, and `BoxScope.align()` from every caller, and nothing flags it because the code still compiles.
+When a slot renders inside a standard layout (`Row`, `Column`, `Box`, `LazyListScope`) whose scope exposes useful caller-facing APIs, the slot type should carry that receiver when callers will use those APIs: a slot rendered inside a `Row` is `@Composable RowScope.() -> Unit`, inside a `Box` is `@Composable BoxScope.() -> Unit`. Writing it as a bare `@Composable () -> Unit` instead is a **silent API regression** — it strips `RowScope.weight()`, `ColumnScope.weight()`, `BoxScope.matchParentSize()`, and `BoxScope.align()` from every caller, and nothing flags it because the code still compiles.
 
 **Don't reflexively scope every slot** — only when the parent's scope offers something the caller meaningfully needs. A slot rendered inside a custom `Layout {}` with no public scope shouldn't be scoped just for symmetry (leaking an internal scope is its own smell).
 
@@ -137,7 +137,7 @@ SettingsRow("Inbox", trailingContent = { Badge { Text("99+") } })
 
 ### 6. Partial-slot trap
 
-If you slot the trailing area but keep `leadingIcon: ImageVector` because "leading is always an icon," you've left the API half-rigid for no real reason. **Slot all the variable areas, or none.**
+If you slot the trailing area but keep `leadingIcon: ImageVector` because "leading is always an icon," you've left the API half-rigid for no real reason. **Slot every area that genuinely varies.** Keep a plain parameter only where the design system fixes the content (a leading icon that must be an icon).
 
 **WHY:** "leading is always an icon" is a load-bearing assumption that fails the first time someone needs a `CircularProgressIndicator`, an `Image`, an avatar, or an icon-with-badge there. A `@Composable () -> Unit` slot costs nothing extra at the common call site (still `{ Icon(...) }`) and absorbs every future variant for free.
 
