@@ -80,9 +80,10 @@ Walks each declaration's constructor and confirms every dependency is declared â
 ```kotlin
 class ModuleVerificationTest : KoinTest {
     @Test fun `all modules resolve cleanly`() {
-        appModule.verify()
-        networkModule.verify()
-        featureModule.verify(extraTypes = listOf(SavedStateHandle::class))   // runtime-resolved types
+        // verify() sees a module plus the modules it includes â€” verify the root, not each module alone,
+        // or a binding provided by a sibling module reports as missing
+        module { includes(appModule, networkModule, featureModule) }
+            .verify(extraTypes = listOf(SavedStateHandle::class))   // runtime-resolved types
     }
 }
 ```
