@@ -15,7 +15,7 @@ Core rules for any KMP boundary:
 
 Two boundaries get the most detail below: the **Activity-owned** platform-UI boundary, and the **AGP-9 KMP-library** constraints.
 
-**Related:** `android-skills:kmp-ktor` (network boundary), `compose/references/multiplatform.md` (Compose-MP mechanics), `android-skills:kotlin-coroutines` (scope ownership). For the iOS↔Swift bridge — Kotlin→Swift naming, type widths (`Int` is 32-bit), SKIE `suspend`→`async` / `Flow`→`AsyncSequence`, sealed-class exhaustiveness, SwiftUI embedding — load `references/ios-interop.md` when authoring the iOS-side actual.
+**Related:** `android-skills:kmp-ktor` (network boundary), `compose/references/multiplatform.md` (Compose-MP mechanics), `android-skills:kotlin-coroutines` (scope ownership). For the iOS↔Swift bridge — Kotlin→Swift naming, type widths (`Int` is 32-bit), `@Throws`, SKIE `suspend`→`async` / `Flow`→`AsyncSequence`, sealed-class exhaustiveness, SwiftUI embedding — load `references/ios-interop.md` when authoring the iOS-side actual.
 
 ## Platform-UI bindings are Activity-owned, not Context-owned
 
@@ -51,7 +51,7 @@ AGP 9 replaces `com.android.library` with **`com.android.kotlin.multiplatform.li
 - **Compose-MP resources need explicit enable** — add `androidResources { enable = true }` inside `kotlin { android { … } }`, or `Res.string.*` / `Res.drawable.*` crash at runtime on Android (the build still succeeds — easy to miss).
 - **Consumer ProGuard rules need migration** — `consumerProguardFiles("rules.pro")` from the old `android {}` block is silently dropped; use `consumerProguardFiles.add(file("rules.pro"))` in the new DSL.
 - **The KMP module can't also be `com.android.application`** — the Android entry point (`MainActivity`, Application class, launcher manifest, `applicationId` / `targetSdk` / `versionCode` / `versionName`) moves to a separate `androidApp` module that depends on the shared library. `MainActivity`, app-level Hilt setup, and nav-host wiring all move out of the shared `androidMain`.
-- **kapt is incompatible** with AGP 9's built-in Kotlin — migrate annotation processors to KSP (2.3.1+), or fall back to `com.android.legacy-kapt` for processors with no KSP equivalent.
+- **kapt is incompatible** with AGP 9's built-in Kotlin — migrate annotation processors to KSP (2.3.6+), or fall back to `com.android.legacy-kapt` for processors with no KSP equivalent.
 
 | Concern | Pre-AGP-9 (monolithic) | AGP 9 KMP library |
 |---|---|---|

@@ -24,7 +24,7 @@ This reference covers the migration facts and cross-platform gotchas, not the ba
 
 **`collectAsStateWithLifecycle()` works in `commonMain`** — it is declared in the common source set of `lifecycle-runtime-compose`; in a CMP project depend on `org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose`. Don't write an `expect`/`actual` wrapper that falls back to `collectAsState()` on other targets.
 
-**`@Preview` in commonMain is `org.jetbrains.compose.ui.tooling.preview.Preview`, NOT `androidx.compose.ui.tooling.preview.Preview`** — the androidx one is Android-only and won't compile in commonMain. Add `compose.components.uiToolingPreview`. Android Studio renders androidMain previews; IntelliJ/Fleet render commonMain ones.
+**`@Preview` in commonMain depends on the Compose Multiplatform version.** From CMP 1.10 use `androidx.compose.ui.tooling.preview.Preview` (dependency `org.jetbrains.compose.ui:ui-tooling-preview`); the AndroidX annotation is now multiplatform. `org.jetbrains.compose.ui.tooling.preview.Preview` (`components-ui-tooling-preview`) is the pre-1.10 form and is deprecated since 1.10.
 
 **`LocalContext` has no KMP replacement** — abstract platform needs behind a common interface. A share sheet specifically is a UI op needing a foreground `Activity`: use a common `ShareSheet` interface with an **Activity-owned** Android binding (not `applicationContext + FLAG_ACTIVITY_NEW_TASK`), not an `expect fun` (which can't be faked in tests or hold an Activity). Full bindings in `android-skills:kmp-boundaries`.
 

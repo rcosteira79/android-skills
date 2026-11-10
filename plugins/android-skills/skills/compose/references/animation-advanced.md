@@ -51,4 +51,6 @@ PredictiveBackHandler(enabled = true) { progress ->
 }
 ```
 
+On a project using the NavigationEvent library, use `NavigationBackHandler` instead (Google's `navigation-event` skill). Bind one `NavigationEventState` per handler: sharing one across two active handlers throws `IllegalArgumentException`.
+
 `NavHost` destination transitions (`enterTransition` / `exitTransition` / `popEnterTransition` / `popExitTransition`) integrate with predictive back automatically — don't double-animate the destination content (see `animation.md`).

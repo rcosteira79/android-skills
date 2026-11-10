@@ -58,6 +58,8 @@ install(Auth) {
 }
 ```
 
+`sendWithoutRequest` only decides whether the token is attached *before* a 401 arrives; it does not exempt a path from the plugin. A 401 from `login` (wrong password) still triggers `refreshTokens`. Send login / register / refresh through a client with no `Auth` plugin if that matters.
+
 Keep `BearerTokens` at the plugin boundary; the rest of the app uses your own token type. `TokenStorage` is project-defined (DataStore on Android/JVM, Keychain on iOS).
 
 ## WebSockets & SSE — use the serialization converter

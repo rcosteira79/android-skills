@@ -32,14 +32,15 @@ For state crossing a composable boundary (parent `scrollOffset` → child), pass
 
 ## Use M3 motion tokens, not arbitrary durations
 
-`tween(durationMillis = 347)` has no design rationale; pin to the M3 ladder (and prefer `spring()` for interruptible, natural motion). Pair each duration tier with its easing:
+`tween(durationMillis = 347)` has no design rationale; pin durations to the M3 ladder (and prefer `spring()` for interruptible, natural motion): Short1–4 = 50 / 100 / 150 / 200ms, Medium1–4 = 250 / 300 / 350 / 400, Long1–4 = 450 / 500 / 550 / 600, ExtraLong1–4 = 700 / 800 / 900 / 1000.
 
-| Duration | ms | Easing token | Compose value |
-|---|---|---|---|
-| Short1–4 | 50 / 100 / 150 / 200 | Emphasized | `CubicBezierEasing(0.2f, 0f, 0f, 1f)` |
-| Medium1–4 | 250 / 300 / 350 / 400 | EmphasizedDecelerate | `CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)` |
-| Long1–4 | 450 / 500 / 550 / 600 | EmphasizedAccelerate | `CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)` |
-| ExtraLong1–4 | 700 / 800 / 900 / 1000 | Standard / Decelerate / Accelerate | `FastOutSlowIn` / `LinearOutSlowIn` / `FastOutLinearIn` |
+Pick the easing by what the element does, not by its duration tier. Material's `MotionTokens` is internal, so define these yourself:
+
+| Easing | Use | Compose value |
+|---|---|---|
+| Emphasized | Moving or resizing on screen | `CubicBezierEasing(0.2f, 0f, 0f, 1f)` |
+| EmphasizedDecelerate | Entering | `CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)` |
+| EmphasizedAccelerate | Exiting | `CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)` |
 
 Spring feel: stiffness `Low`(200) / `MediumLow`(400) / `Medium`(1500) / `High`(10000) = gentle→snappy; damping `NoBouncy`(1.0) / `LowBouncy`(0.75) / `MediumBouncy`(0.5) / `HighBouncy`(0.2) = none→cartoonish. Convert a Figma spring with `dampingRatio = damping / (2 * sqrt(stiffness * mass))`.
 

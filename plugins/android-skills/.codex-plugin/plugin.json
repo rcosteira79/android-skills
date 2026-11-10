@@ -1,6 +1,6 @@
 {
   "name": "android-skills",
-  "version": "5.7.0",
+  "version": "5.7.1",
   "description": "Android and KMP development skills — architecture, Compose, coroutines, networking, persistence, dependency injection, testing, debugging, and Gradle.",
   "author": {
     "name": "Ricardo Costeira"

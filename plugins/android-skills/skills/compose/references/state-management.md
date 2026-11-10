@@ -68,7 +68,7 @@ val isPast by remember(threshold) { derivedStateOf { listState.firstVisibleItemI
 **1. Composition → composition** — rebuilding a `mutableStateMapOf`/`mutableStateListOf` inside a composable body writes observable state *during composition*, invalidating the scope that's running:
 
 ```kotlin
-// WRONG — composition rebuilds the map → invalidates composition → rebuilds the map…
+// WRONG — writes observable state during composition → invalidates the scope that is running
 val grouped = remember { mutableStateMapOf<String, List<Item>>() }
 grouped.clear(); grouped.putAll(items.groupBy { it.category })
 
@@ -81,7 +81,7 @@ val grouped = remember(items) { items.groupBy { it.category } }
 **2. Layout → composition** — `onSizeChanged` fires *after* layout; writing a `MutableState` from it that's read in composition invalidates composition with the new size → lays out again → fires again:
 
 ```kotlin
-// WRONG — onSizeChanged writes state read in composition → feedback loop
+// WRONG — onSizeChanged writes state read in composition → an extra composition + layout pass per size change
 var widthPx by remember { mutableIntStateOf(0) }
 Box(Modifier.fillMaxWidth().onSizeChanged { widthPx = it.width }) {
     Text(title, Modifier.padding(start = (widthPx / 4).dp))   // composition read of widthPx

@@ -26,7 +26,8 @@ Example: a Kotlin file `MainViewController.kt` with `fun MainViewController(): U
 | `String` | `String` | Non-null bridged directly |
 | `String?` | `String?` | Optional bridged directly |
 | `Int` / `Long` | `Int32` / `Int64` | **Not Swift `Int`.** Swift `Int` is platform-sized; the Kotlin types map to fixed-width Swift types. Cast explicitly when passing to Swift APIs that expect `Int`. |
-| `Unit` | `KotlinUnit` | Awkward — avoid in public API. Caller must discard explicitly. |
+| `Unit` return type | `Void` | |
+| An exception not listed in `@Throws` | Terminates the app | Mark every function Swift calls with `@Throws(...)` naming the expected exceptions. A `suspend` function without it propagates only `CancellationException`; a non-`suspend` one propagates nothing. |
 | `List<T>` | `[T]` (read-only copy) | Mutability and structural sharing lost at the boundary. |
 | `Map<K, V>` | `[K: V]` (read-only copy) | Same caveat as `List`. |
 
@@ -132,7 +133,7 @@ case .error(let e): showError(e.message)
 - Prefer data classes over deep class hierarchies at the boundary — simpler Swift mapping.
 - Set `isStatic = true` in framework configuration for static linkage (smaller binary, faster startup).
 - Minimize Kotlin↔Swift boundary crossings in hot paths — batch data, don't iterate across the boundary.
-- Avoid `suspend` functions that return `Unit` — Swift receives `KotlinUnit`, which callers must discard explicitly.
+- Annotate every Swift-facing function that can fail with `@Throws` — an undeclared exception reaching Swift terminates the app.
 
 ---
 
@@ -168,7 +169,7 @@ For direct UIKit views (`MKMapView`, `WKWebView`, `AVCaptureSession`), use `UIKi
 ## Checklist
 
 - [ ] No generics in types crossing the iOS boundary — use concrete sealed/data classes
-- [ ] `suspend` returning `Unit` avoided; if unavoidable, callers explicitly discard
+- [ ] `@Throws` on every Swift-facing function that can fail
 - [ ] `Int` width handled — explicit casts when bridging to Swift `Int`
 - [ ] SKIE installed (or KMP-NativeCoroutines if existing) for `Flow`/`async` bridging
 - [ ] Sealed classes use SKIE `onEnum(of:)` switches for exhaustiveness
