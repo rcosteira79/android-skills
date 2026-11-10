@@ -51,6 +51,8 @@ AGP 9 replaces `com.android.library` with **`com.android.kotlin.multiplatform.li
 - **Compose-MP resources need explicit enable** — add `androidResources { enable = true }` inside `kotlin { android { … } }`, or `Res.string.*` / `Res.drawable.*` crash at runtime on Android (the build still succeeds — easy to miss).
 - **Consumer ProGuard rules need migration** — `consumerProguardFiles("rules.pro")` from the old `android {}` block is silently dropped; use `consumerProguardFiles.add(file("rules.pro"))` in the new DSL.
 - **The KMP module can't also be `com.android.application`** — the Android entry point (`MainActivity`, Application class, launcher manifest, `applicationId` / `targetSdk` / `versionCode` / `versionName`) moves to a separate `androidApp` module that depends on the shared library. `MainActivity`, app-level Hilt setup, and nav-host wiring all move out of the shared `androidMain`.
+- **Tests are opt-in and renamed** — enable them with `withHostTest { }` / `withDeviceTest { }` inside `kotlin { android { … } }`; `androidUnitTest` becomes `androidHostTest` and `androidInstrumentedTest` becomes `androidDeviceTest` (the source directories move too).
+- **No `debugImplementation`** — there is one variant. Compose `ui-tooling` goes on `"androidRuntimeClasspath"(…)`; choosing a variant of a multi-variant dependency goes in `localDependencySelection { }`.
 - **kapt is incompatible** with AGP 9's built-in Kotlin — migrate annotation processors to KSP (2.3.6+), or fall back to `com.android.legacy-kapt` for processors with no KSP equivalent.
 
 | Concern | Pre-AGP-9 (monolithic) | AGP 9 KMP library |

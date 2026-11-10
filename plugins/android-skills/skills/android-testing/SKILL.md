@@ -77,4 +77,6 @@ A composable's contract is "render state, emit callbacks" — test exactly that;
 
 **Animation tests need `mainClock.autoAdvance = false` set *before* `setContent`** — otherwise the framework's `InfiniteAnimationPolicy` throws `CancellationException` on indeterminate animations, and finite animations finish in one auto-advanced burst with no observable intermediate state. After pausing, drive frames with `advanceTimeByFrame()` (kick-off) then `advanceTimeBy(durationMillis)`.
 
+**Turbine's timeout is wall-clock** — the default 3 seconds ignores `runTest`'s virtual time, so `advanceTimeBy` never trips or avoids it. A slow CI machine can time out a test that virtual time says is instant; pass `test(timeout = …)` when that bites.
+
 **Screenshot determinism:** fixed state data (no current time, random seeds, or remote URLs in the screenshot path); frozen clocks (`Clock.fixed(...)`) and animation progress; a fake image loader for image-heavy screens (Coil 3's test double: `LocalImageLoader provides FakeImageLoader(LocalContext.current)`, or `setContentWithFakeImageLoader { … }`); one shot per meaningful state (loading / error / success / empty), not one per UI element.

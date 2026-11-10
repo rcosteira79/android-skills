@@ -68,7 +68,7 @@ Use M3's duration ladder rather than arbitrary millis, and pick easing by what t
 | `long1`…`long4` | 450–600ms | Container transforms, fade-through between large surfaces |
 | `extraLong1`…`extraLong4` | 700–1000ms | Shared-element / hero transitions on tablets/foldables |
 
-Animations must be interruptible and never block input. **Respect reduced motion** — Compose has no built-in `LocalReducedMotion`, so read `ANIMATOR_DURATION_SCALE` and provide one:
+Animations must be interruptible and never block input. **Reduced motion:** Compose already applies the system animator duration scale to its animations (through `MotionDurationScale`), so with animations off they finish instantly — no code needed for that. Add the local below only to *swap* the motion design, e.g. drop a slide and keep nothing; Compose has no built-in `LocalReducedMotion`:
 
 ```kotlin
 val LocalReducedMotion = staticCompositionLocalOf { false }

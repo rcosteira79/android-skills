@@ -33,6 +33,8 @@ The boundary moves outward by one layer when a domain layer exists:
 3. **Use cases** (when present) are the `Result` boundary — the repository instead *throws* `DataError`, and the use case catches it and returns `Result<T>` with a domain-specific error model. Use cases never catch platform exception types.
 4. **ViewModels** handle `Result<T>` and map it to UI state (explicit loading / success / error).
 
+**A `@Serializable` value class encodes as the wrapped value, not an object.** Changing `data class UserId(val value: String)` to `@JvmInline value class UserId(val value: String)` changes the wire format from `{"value":"x"}` to `"x"` — a breaking change for a stored or network payload.
+
 (Default to the `Entity` suffix — `ArticleEntity` — for Room types; match an existing convention such as a `Cached` prefix if the project already uses one.)
 
 ## Room in KMP (`commonMain`)
