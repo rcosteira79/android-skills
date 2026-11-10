@@ -50,7 +50,7 @@ What the generated files show:
 - **`*_composables.txt`** — each composable's restartability/skippability:
   ```
   restartable skippable fun MyComponent(name: String, onClick: Function0<Unit>)
-  restartable fun UnstableComponent(items: List<Item>)  // NOT skippable — unstable param
+  restartable skippable fun ListComponent(unstable items: List<Item>)  // skippable under strong skipping; `items` compared by instance
   ```
 - **`*_classes.txt`** — stability inference per class:
   ```
@@ -403,7 +403,7 @@ The **Composition state** column classifies each parameter — map status to fix
 | **Static** | Compile-time constant | Skip |
 | **Unknown** | Interface-typed; concrete type hidden | Expose a stable concrete type, or ensure callers reuse instances |
 
-Most "why is this recomposing?" investigations resolve at **Uncertain** — an unstable type forces instance-equality, callers create new instances every parent recomposition, the composable runs every time. Fix the type; don't memoize the caller.
+Most "why is this recomposing?" investigations resolve at **Uncertain** — an unstable type forces instance-equality, callers create new instances every parent recomposition, the composable runs every time. Stop the caller creating a new instance (`remember` or hoist it); for a non-collection type, making it stable also works.
 
 For headless/CLI workflows, dump `android layout --pretty -o <file>` in each app state and diff the two files; combine with `SideEffect { Log.d(...) }` counters to correlate changes with hot paths. **Macrobenchmark** `FrameTimingMetric()` reports frame times — target <16.67 ms for 60 fps.
 
